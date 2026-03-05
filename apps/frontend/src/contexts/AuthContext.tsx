@@ -51,15 +51,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
+    // Se supabase não está configurado, encerrar loading e não tentar auth
+    if (!supabase) {
+      console.warn('Supabase não configurado. Autenticação desabilitada.');
+      setLoading(false);
+      return () => { mounted = false; };
+    }
+
     // Obter sessão inicial
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }: any) => {
       if (mounted) {
         fetchUser(session?.access_token || null).finally(() => setLoading(false));
       }
     });
 
     // Escutar mudanças
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: any, session: any) => {
       await fetchUser(session?.access_token || null);
     });
 
@@ -79,7 +86,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    if (supabase) await supabase.auth.signOut();
     localStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(TOKEN_KEY);
     setToken(null);
@@ -87,6 +94,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const refresh = async () => {
+    if (!supabase) return;
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.access_token) {
       const response = await api.get('/auth/me');
