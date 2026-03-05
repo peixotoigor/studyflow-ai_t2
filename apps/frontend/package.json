@@ -1,0 +1,29 @@
+{
+  "name": "studyflow-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node ../../node_modules/vite/bin/vite.js",
+    "build": "node ../../node_modules/vite/bin/vite.js build",
+    "vercel-build": "npx vite build",
+    "preview": "node ../../node_modules/vite/bin/vite.js preview"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.98.0",
+    "@tanstack/react-query": "^5.62.7",
+    "axios": "^1.7.9",
+    "pdfjs-dist": "^4.8.69",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "react-router-dom": "^7.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.1.5",
+    "@types/react-dom": "^19.1.5",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}

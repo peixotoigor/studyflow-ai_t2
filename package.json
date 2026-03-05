@@ -1,27 +1,33 @@
 {
-  "homepage": "https://peixotoigor.github.io/studyflow-ai_t",
   "name": "studyflow-ai",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
+  "workspaces": [
+    "apps/backend",
+    "apps/frontend"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
-  },
-  "dependencies": {
-    "@google/genai": "latest",
-    "pdfjs-dist": "^4.8.69",
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3"
+    "dev": "concurrently \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:backend": "npm run dev --workspace=studyflow-backend",
+    "dev:frontend": "npm run dev --workspace=studyflow-frontend",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "npm run build --workspace=studyflow-backend",
+    "build:frontend": "npm run build --workspace=studyflow-frontend",
+    "start": "npm run start --workspace=studyflow-backend",
+    "lint": "npm run lint --workspace=studyflow-backend",
+    "test:setup": "node scripts/setup.cjs",
+    "test:api": "node scripts/test-api.js"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "gh-pages": "^6.3.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "concurrently": "^9.1.2",
+    "express": "^4.19.2",
+    "sequelize": "^6.37.3",
+    "pg": "^8.11.0",
+    "cors": "^2.8.5",
+    "helmet": "^7.0.0",
+    "dotenv": "^16.4.0",
+    "express-async-errors": "^3.1.1",
+    "@supabase/supabase-js": "^2.98.0"
   }
 }
