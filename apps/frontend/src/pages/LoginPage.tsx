@@ -44,11 +44,18 @@ const LoginPage = () => {
       if (supeError) {
         throw supeError;
       }
-      
-      // O AuthContext interceptará o evento `onAuthStateChange` e cuidará de buscar `/auth/me` local.
-      setTimeout(() => {
-        navigate('/', { replace: true });
-      }, 300);
+
+      const accessToken = data.session?.access_token;
+      if (!accessToken) {
+        throw new Error('Sessão não retornada pelo Supabase');
+      }
+
+      // Buscar perfil do backend e atualizar AuthContext antes de navegar
+      localStorage.setItem('studyflow_token', accessToken);
+      const meResponse = await api.get('/auth/me');
+      login(accessToken, meResponse.data.user, rememberMe);
+      queryClient.clear();
+      navigate('/', { replace: true });
     } catch (err: any) {
       console.error(err);
       let errorMessage = 'Falha ao entrar';

@@ -71,9 +71,19 @@ const RegisterPage = () => {
         throw supeError;
       }
 
-      setTimeout(() => {
-        navigate('/', { replace: true });
-      }, 300);
+      const accessToken = data.session?.access_token;
+      if (!accessToken) {
+        // Supabase pode exigir confirmação de email
+        setError('Verifique seu e-mail para confirmar o cadastro.');
+        return;
+      }
+
+      // Buscar perfil do backend e atualizar AuthContext antes de navegar
+      localStorage.setItem('studyflow_token', accessToken);
+      const meResponse = await api.get('/auth/me');
+      login(accessToken, meResponse.data.user);
+      queryClient.clear();
+      navigate('/', { replace: true });
     } catch (err: any) {
       console.error(err);
       let errorMessage = 'Falha ao cadastrar';
