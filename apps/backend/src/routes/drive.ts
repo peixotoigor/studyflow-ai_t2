@@ -26,52 +26,70 @@ router.get('/connect', authMiddleware, async (req: AuthenticatedRequest, res) =>
 
 // Endpoint de callback do Google: configure GOOGLE_REDIRECT_URI apontando para este path completo.
 router.get('/callback', async (req, res) => {
-  const { code, state } = req.query;
-  if (!code || typeof code !== 'string') {
-    throw new AppError('Código do Google ausente', 400);
-  }
-  if (!state || typeof state !== 'string') {
-    throw new AppError('State ausente ou inválido', 400);
-  }
-
-  let userId = state;
   let returnUrl: string | undefined;
+  
   try {
-    const decoded = JSON.parse(Buffer.from(state, 'base64url').toString('utf8')) as { userId?: string; returnUrl?: string };
-    if (decoded.userId) {
-      userId = decoded.userId;
+    const { code, state } = req.query;
+    if (!code || typeof code !== 'string') {
+      throw new AppError('Código do Google ausente', 400);
     }
-    if (decoded.returnUrl) {
-      returnUrl = decoded.returnUrl;
+    if (!state || typeof state !== 'string') {
+      throw new AppError('State ausente ou inválido', 400);
     }
-  } catch (_err) {
-    userId = state;
+
+    let userId = state;
+    try {
+      const decoded = JSON.parse(Buffer.from(state, 'base64url').toString('utf8')) as { userId?: string; returnUrl?: string };
+      if (decoded.userId) {
+        userId = decoded.userId;
+      }
+      if (decoded.returnUrl) {
+        returnUrl = decoded.returnUrl;
+      }
+    } catch (_err) {
+      userId = state;
+    }
+
+    const refreshToken = await exchangeCodeForTokens(code);
+
+    const [record] = await UserDriveAuth.findOrCreate({
+      where: { userId },
+      defaults: { userId, refreshToken }
+    });
+
+    if (record.refreshToken !== refreshToken) {
+      await record.update({ refreshToken });
+    }
+
+    const folderId = await ensureDataFolder(refreshToken);
+    if (!record.driveFolderId) {
+      await record.update({ driveFolderId: folderId });
+    }
+
+    const frontendBase = (process.env.FRONTEND_URL || process.env.WEB_APP_URL || 'http://localhost:5173').replace(/\/$/, '');
+    const successPath = process.env.DRIVE_SUCCESS_PATH || '/';
+    const baseRedirect = returnUrl
+      ? returnUrl
+      : `${frontendBase}${successPath.startsWith('/') ? successPath : `/${successPath}`}`;
+    const redirectUrl = `${baseRedirect}${baseRedirect.includes('?') ? '&' : '?'}drive=connected&folderId=${encodeURIComponent(folderId)}`;
+
+    res.redirect(303, redirectUrl);
+  } catch (error: any) {
+    console.error('Erro no callback do Google Drive:', error);
+    
+    // Fallback URL in case of error
+    const frontendBase = (process.env.FRONTEND_URL || process.env.WEB_APP_URL || 'http://localhost:5173').replace(/\/$/, '');
+    const successPath = process.env.DRIVE_SUCCESS_PATH || '/';
+    const baseRedirect = returnUrl
+      ? returnUrl
+      : `${frontendBase}${successPath.startsWith('/') ? successPath : `/${successPath}`}`;
+      
+    // Create an error redirect URL
+    const errorMessage = error instanceof AppError ? error.message : (error.message || 'Erro de autenticação no Google Drive');
+    const redirectUrl = `${baseRedirect}${baseRedirect.includes('?') ? '&' : '?'}drive=error&message=${encodeURIComponent(errorMessage)}`;
+    
+    res.redirect(303, redirectUrl);
   }
-
-  const refreshToken = await exchangeCodeForTokens(code);
-
-  const [record] = await UserDriveAuth.findOrCreate({
-    where: { userId },
-    defaults: { userId, refreshToken }
-  });
-
-  if (record.refreshToken !== refreshToken) {
-    await record.update({ refreshToken });
-  }
-
-  const folderId = await ensureDataFolder(refreshToken);
-  if (!record.driveFolderId) {
-    await record.update({ driveFolderId: folderId });
-  }
-
-  const frontendBase = (process.env.FRONTEND_URL || process.env.WEB_APP_URL || 'http://localhost:5173').replace(/\/$/, '');
-  const successPath = process.env.DRIVE_SUCCESS_PATH || '/';
-  const baseRedirect = returnUrl
-    ? returnUrl
-    : `${frontendBase}${successPath.startsWith('/') ? successPath : `/${successPath}`}`;
-  const redirectUrl = `${baseRedirect}${baseRedirect.includes('?') ? '&' : '?'}drive=connected&folderId=${encodeURIComponent(folderId)}`;
-
-  res.redirect(303, redirectUrl);
 });
 
 router.post('/backup/export', authMiddleware, async (req: AuthenticatedRequest, res) => {
