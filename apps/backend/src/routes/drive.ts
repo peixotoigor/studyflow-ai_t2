@@ -66,23 +66,37 @@ router.get('/callback', async (req, res) => {
       await record.update({ driveFolderId: folderId });
     }
 
-    const frontendBase = (process.env.FRONTEND_URL || process.env.WEB_APP_URL || 'http://localhost:5173').replace(/\/$/, '');
+    // Determine the base URL for redirection
+    const host = req.headers.host;
+    const protocol = req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const currentDomain = host ? `${protocol}://${host}` : '';
+    
+    const frontendBase = (process.env.FRONTEND_URL || process.env.WEB_APP_URL || currentDomain || 'http://localhost:5173').replace(/\/$/, '');
     const successPath = process.env.DRIVE_SUCCESS_PATH || '/';
-    const baseRedirect = returnUrl
-      ? returnUrl
-      : `${frontendBase}${successPath.startsWith('/') ? successPath : `/${successPath}`}`;
+    
+    // If returnUrl was provided and seems valid, use it. Otherwise, construct one from frontendBase.
+    let baseRedirect = returnUrl;
+    if (!baseRedirect) {
+      baseRedirect = `${frontendBase}${successPath.startsWith('/') ? successPath : `/${successPath}`}`;
+    }
+
     const redirectUrl = `${baseRedirect}${baseRedirect.includes('?') ? '&' : '?'}drive=connected&folderId=${encodeURIComponent(folderId)}`;
 
     res.redirect(303, redirectUrl);
   } catch (error: any) {
     console.error('Erro no callback do Google Drive:', error);
     
-    // Fallback URL in case of error
-    const frontendBase = (process.env.FRONTEND_URL || process.env.WEB_APP_URL || 'http://localhost:5173').replace(/\/$/, '');
+    const host = req.headers.host;
+    const protocol = req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const currentDomain = host ? `${protocol}://${host}` : '';
+    
+    const frontendBase = (process.env.FRONTEND_URL || process.env.WEB_APP_URL || currentDomain || 'http://localhost:5173').replace(/\/$/, '');
     const successPath = process.env.DRIVE_SUCCESS_PATH || '/';
-    const baseRedirect = returnUrl
-      ? returnUrl
-      : `${frontendBase}${successPath.startsWith('/') ? successPath : `/${successPath}`}`;
+    
+    let baseRedirect = returnUrl;
+    if (!baseRedirect) {
+      baseRedirect = `${frontendBase}${successPath.startsWith('/') ? successPath : `/${successPath}`}`;
+    }
       
     // Create an error redirect URL
     const errorMessage = error instanceof AppError ? error.message : (error.message || 'Erro de autenticação no Google Drive');

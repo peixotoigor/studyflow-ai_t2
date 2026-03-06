@@ -165,6 +165,30 @@ const MigratedAppPage = () => {
     }
   }, [plans, currentPlanId]);
 
+  // Handle URL parameters for Google Drive connection results
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const driveResult = params.get('drive');
+    const folderId = params.get('folderId');
+    const errorMessage = params.get('message');
+
+    if (driveResult === 'connected') {
+      setDriveStatus('Google Drive conectado com sucesso!');
+      if (folderId) {
+        setDriveStatus(`Google Drive conectado! Pasta: ${folderId}`);
+        // Tenta listar backups imediatamente após conectar
+        handleListBackups();
+      }
+      setIsProfileOpen(true);
+      // Limpa os parâmetros da URL para evitar mensagens repetidas no refresh
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (driveResult === 'error') {
+      setDriveError(errorMessage || 'Erro ao conectar ao Google Drive');
+      setIsProfileOpen(true);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   // Loading state
   const isLoading = summaryLoading || plansLoading || userLoading;
 
