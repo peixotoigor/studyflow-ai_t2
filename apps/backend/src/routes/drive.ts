@@ -78,6 +78,8 @@ router.get('/callback', async (req, res) => {
     let baseRedirect = returnUrl;
     if (!baseRedirect) {
       baseRedirect = `${frontendBase}${successPath.startsWith('/') ? successPath : `/${successPath}`}`;
+    } else {
+      baseRedirect = baseRedirect.replace(/\/$/, '');
     }
 
     const redirectUrl = `${baseRedirect}${baseRedirect.includes('?') ? '&' : '?'}drive=connected&folderId=${encodeURIComponent(folderId)}`;
@@ -96,6 +98,8 @@ router.get('/callback', async (req, res) => {
     let baseRedirect = returnUrl;
     if (!baseRedirect) {
       baseRedirect = `${frontendBase}${successPath.startsWith('/') ? successPath : `/${successPath}`}`;
+    } else {
+      baseRedirect = baseRedirect.replace(/\/$/, '');
     }
       
     // Create an error redirect URL
