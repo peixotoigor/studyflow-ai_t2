@@ -3,13 +3,19 @@
   "installCommand": "npm install",
   "buildCommand": "npm run build --workspace=studyflow-frontend",
   "outputDirectory": "apps/frontend/dist",
+  "functions": {
+    "api/**/*.ts": {
+      "memory": 1024,
+      "maxDuration": 15
+    }
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",
       "destination": "/api/index.ts"
     },
     {
-      "source": "/((?!api/).*)",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
