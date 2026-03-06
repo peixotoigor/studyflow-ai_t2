@@ -3,6 +3,7 @@ import { UserProfile } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useUpdateUserSettings, useUpdateProfile } from '../hooks/useUser';
 import { supabase } from '../lib/supabase';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface DriveBackupProps {
     onConnect: () => void;
@@ -87,6 +88,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ user, isOpen, onClos
     const { user: authUser } = useAuth();
     const updateSettings = useUpdateUserSettings();
     const updateProfile = useUpdateProfile();
+    const { theme, toggleTheme } = useTheme();
     
     const fileInputRef = useRef<HTMLInputElement>(null);
     const imgRef = useRef<HTMLImageElement>(null);
@@ -524,6 +526,26 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ user, isOpen, onClos
                                                         {AI_MODELS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
                                                     </select>
                                                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"><span className="material-symbols-outlined">expand_more</span></span>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="flex flex-col gap-1.5 pt-2">
+                                                <div className="flex justify-between items-center bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                                            <span className="material-symbols-outlined text-[18px]">
+                                                                {theme === 'dark' ? 'dark_mode' : 'light_mode'}
+                                                            </span>
+                                                            Modo Escuro (Night Mode)
+                                                        </span>
+                                                        <span className="text-xs text-gray-500 dark:text-gray-400">Alternar aparência do sistema</span>
+                                                    </div>
+                                                    <button 
+                                                        onClick={toggleTheme}
+                                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${theme === 'dark' ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'}`}
+                                                    >
+                                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${theme === 'dark' ? 'translate-x-6' : 'translate-x-1'}`} />
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>

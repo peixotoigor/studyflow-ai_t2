@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import AuthGate from './components/AuthGate';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -10,8 +11,9 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 
 const App = () => (
-  <AuthProvider>
-    <Routes>
+  <ThemeProvider>
+    <AuthProvider>
+      <Routes>
       <Route
         path="/"
         element={(
@@ -27,6 +29,7 @@ const App = () => (
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   </AuthProvider>
+</ThemeProvider>
 );
 
 export default App;

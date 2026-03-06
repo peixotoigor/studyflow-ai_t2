@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Screen, UserProfile, StudyPlan } from '../types';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface SidebarProps {
     currentScreen: Screen;
@@ -42,6 +43,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const [editPlanColor, setEditPlanColor] = useState('blue');
 
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const { theme, toggleTheme } = useTheme();
 
     const navItems = [
         { id: Screen.DASHBOARD, label: 'Dashboard', icon: 'dashboard' },
@@ -297,7 +299,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         ))}
                     </div>
                 </div>
-                <div className="px-2">
+                <div className="px-2 flex flex-col gap-2">
+                    <button
+                        onClick={toggleTheme}
+                        className="flex items-center gap-3 px-3 py-2 w-full text-left rounded-lg text-text-secondary-light dark:text-text-secondary-dark hover:bg-gray-100 dark:hover:bg-white/5 hover:text-text-primary-light dark:hover:text-text-primary-dark transition-all group"
+                        title="Alternar Tema"
+                    >
+                        <span className="material-symbols-outlined text-[24px]">
+                            {theme === 'dark' ? 'light_mode' : 'dark_mode'}
+                        </span>
+                        <p className="text-sm font-medium leading-normal">
+                            {theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}
+                        </p>
+                    </button>
                     <button 
                         onClick={onLock}
                         className="flex items-center gap-3 px-3 py-2 w-full text-left rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all group"
