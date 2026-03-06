@@ -20,14 +20,6 @@
     "test:api": "node scripts/test-api.js"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2",
-    "express": "^4.19.2",
-    "sequelize": "^6.37.3",
-    "pg": "^8.11.0",
-    "cors": "^2.8.5",
-    "helmet": "^7.0.0",
-    "dotenv": "^16.4.0",
-    "express-async-errors": "^3.1.1",
-    "@supabase/supabase-js": "^2.98.0"
+    "concurrently": "^9.1.2"
   }
 }

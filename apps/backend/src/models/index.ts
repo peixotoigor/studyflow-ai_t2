@@ -1,15 +1,3 @@
-import './User';
-import './UserSettings';
-import './StudyPlan';
-import './Subject';
-import './Topic';
-import './StudyLog';
-import './ErrorLog';
-import './SimulatedExam';
-import './SavedNote';
-import './UserDriveAuth';
-import './PasswordResetToken';
-
 import { User } from './User';
 import { UserSettings } from './UserSettings';
 import { StudyPlan } from './StudyPlan';

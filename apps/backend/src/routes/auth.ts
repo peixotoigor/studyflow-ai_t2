@@ -19,6 +19,21 @@ const serializeUser = (user: User) => ({
   createdAt: user.createdAt
 });
 
+const serializeSettings = (settings: UserSettings) => ({
+  dailyAvailableTimeMinutes: settings.dailyAvailableTimeMinutes,
+  openAiModel: settings.openAiModel,
+  openAiApiKey: hasSecret(settings.openAiApiKey) ? '***' : null,
+  hasOpenAiApiKey: hasSecret(settings.openAiApiKey),
+  githubToken: hasSecret(settings.githubToken) ? '***' : null,
+  hasGithubToken: hasSecret(settings.githubToken),
+  backupGistId: settings.backupGistId,
+  avatarUrl: settings.avatarUrl || null,
+  scheduleSettings: settings.scheduleSettings || null,
+  scheduleSelection: settings.scheduleSelection || null,
+  openAiApiKeyDecrypted: decryptSecret(settings.openAiApiKey),
+  githubTokenDecrypted: decryptSecret(settings.githubToken)
+});
+
 router.get('/me', authMiddleware, async (req: AuthenticatedRequest, res) => {
   let user = await User.findByPk(req.userId as string, {
     include: [{ association: 'settings', required: false }]
@@ -54,25 +69,7 @@ router.get('/me', authMiddleware, async (req: AuthenticatedRequest, res) => {
 
   const userData = serializeUser(user);
   const settings = user.settings || await UserSettings.create({ userId: user.id });
-  const openAiApiKeyDecrypted = decryptSecret(settings.openAiApiKey);
-  const githubTokenDecrypted = decryptSecret(settings.githubToken);
-  res.json({ 
-    user: userData,
-    settings: {
-      dailyAvailableTimeMinutes: settings.dailyAvailableTimeMinutes,
-      openAiModel: settings.openAiModel,
-      openAiApiKey: hasSecret(settings.openAiApiKey) ? '***' : null,
-      hasOpenAiApiKey: hasSecret(settings.openAiApiKey),
-      githubToken: hasSecret(settings.githubToken) ? '***' : null,
-      hasGithubToken: hasSecret(settings.githubToken),
-      backupGistId: settings.backupGistId,
-      avatarUrl: settings.avatarUrl || null,
-      scheduleSettings: settings.scheduleSettings || null,
-      scheduleSelection: settings.scheduleSelection || null,
-      openAiApiKeyDecrypted,
-      githubTokenDecrypted
-    }
-  });
+  res.json({ user: userData, settings: serializeSettings(settings) });
 });
 
 const updateProfileSchema = z.object({
@@ -106,20 +103,7 @@ router.get('/settings', authMiddleware, async (req: AuthenticatedRequest, res) =
   if (!settings) {
     settings = await UserSettings.create({ userId: req.userId as string });
   }
-  const openAiApiKeyDecrypted = decryptSecret(settings.openAiApiKey);
-  const githubTokenDecrypted = decryptSecret(settings.githubToken);
-  res.json({
-    dailyAvailableTimeMinutes: settings.dailyAvailableTimeMinutes,
-    openAiModel: settings.openAiModel,
-    hasOpenAiApiKey: hasSecret(settings.openAiApiKey),
-    hasGithubToken: hasSecret(settings.githubToken),
-    backupGistId: settings.backupGistId,
-    avatarUrl: settings.avatarUrl || null,
-    scheduleSettings: settings.scheduleSettings || null,
-    scheduleSelection: settings.scheduleSelection || null,
-    openAiApiKeyDecrypted,
-    githubTokenDecrypted
-  });
+  res.json(serializeSettings(settings));
 });
 
 router.put('/settings', authMiddleware, async (req: AuthenticatedRequest, res) => {
@@ -146,18 +130,8 @@ router.put('/settings', authMiddleware, async (req: AuthenticatedRequest, res) =
 
   void syncToDriveIfConnected(req.userId as string).catch((err) => console.warn('[drive-sync] settings update', err));
 
-  res.json({
-    dailyAvailableTimeMinutes: settings.dailyAvailableTimeMinutes,
-    openAiModel: settings.openAiModel,
-    hasOpenAiApiKey: hasSecret(settings.openAiApiKey),
-    hasGithubToken: hasSecret(settings.githubToken),
-    backupGistId: settings.backupGistId,
-    avatarUrl: settings.avatarUrl || null,
-    scheduleSettings: settings.scheduleSettings || null,
-    scheduleSelection: settings.scheduleSelection || null,
-    openAiApiKeyDecrypted: decryptSecret(settings.openAiApiKey),
-    githubTokenDecrypted: decryptSecret(settings.githubToken)
-  });
+  res.json(serializeSettings(settings));
 });
 
 export default router;
+
