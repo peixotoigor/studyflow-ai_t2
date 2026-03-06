@@ -25,6 +25,7 @@ import { SavedNotes } from '../components/SavedNotes';
 import { ProfileModal } from '../components/ProfileModal';
 import { BottomNavigation } from '../components/BottomNavigation';
 import { loadLocalSecret, saveLocalSecret } from '../utils/secrets';
+import { useTheme } from '../contexts/ThemeContext';
 import type { StudyPlan, Subject, ErrorLog, StudyLog, SimulatedExam, SavedNote, StudyModality, ImporterState, UserProfile } from '../types';
 
 const isValidUUID = (value?: string) => !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -83,6 +84,8 @@ const MigratedAppPage = () => {
   const deleteSavedNote = useDeleteSavedNote();
   const updateUserSettings = useUpdateUserSettings();
   const updateProfile = useUpdateProfile();
+  
+  const { theme, toggleTheme } = useTheme();
 
   const autoRestoreAttempted = useRef(false);
 
@@ -1102,14 +1105,25 @@ const MigratedAppPage = () => {
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-2 text-sm" title={syncMessage || 'Estado de sincronização com o Drive'}>
-              <span className="material-symbols-outlined" style={{ color: syncColor, fontSize: '18px' }}>
-                {syncIcon}
-              </span>
-              <span style={{ color: syncColor, fontWeight: 600 }}>Drive</span>
-              {syncState === 'syncing' && <span className="text-xs" style={{ color: '#6b7280' }}>Sincronizando…</span>}
-              {syncState === 'ok' && <span className="text-xs" style={{ color: syncColor }}>OK</span>}
-              {syncState === 'error' && <span className="text-xs text-red-500">Erro</span>}
+            <div className="flex items-center gap-4">
+              <button
+                  onClick={toggleTheme}
+                  className="flex items-center justify-center p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-text-secondary-light dark:text-text-secondary-dark"
+                  title={theme === 'dark' ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
+              >
+                  <span className="material-symbols-outlined">
+                      {theme === 'dark' ? 'light_mode' : 'dark_mode'}
+                  </span>
+              </button>
+              <div className="flex items-center gap-2 text-sm" title={syncMessage || 'Estado de sincronização com o Drive'}>
+                <span className="material-symbols-outlined" style={{ color: syncColor, fontSize: '18px' }}>
+                  {syncIcon}
+                </span>
+                <span style={{ color: syncColor, fontWeight: 600 }}>Drive</span>
+                {syncState === 'syncing' && <span className="text-xs" style={{ color: '#6b7280' }}>Sincronizando…</span>}
+                {syncState === 'ok' && <span className="text-xs" style={{ color: syncColor }}>OK</span>}
+                {syncState === 'error' && <span className="text-xs text-red-500">Erro</span>}
+              </div>
             </div>
           </header>
 

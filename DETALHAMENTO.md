@@ -1,4 +1,54 @@
-###
+### HISTÓRICo
+
+Essa funcionalidade, está conectada com o modo foco. Ao terminar uma sessão de estudo é armazenado nessa página. Ainda é possível adicionar manualmente.
+
+* O botão "Registrar Sessão" tem as mesmas funções encontradas no modo foco.
+* É possível fazer a busca  de contéudo.
+* É possivel selecionar o filtro com as "Disciplinas".
+
+### SIMULADOS
+
+Essa funcionalidade consiste em regristar o resultado de simulados realizados pelo usuário.
+
+    * O botão "Novo simulado" permite incluir:
+        * O nome do simulado
+        * Banca/Instituição
+        * Data da realização
+        * Total de questões
+        * Total de acertos
+
+### CADERNOS DE ERROS
+
+Essa funcionalidade consiste em registrar erros para diagnosticar fraquezas e revisar o que realmente importa. 
+
+    * O botão  "Registrar Erro" apresenta as funcionalidades:
+        * Selecionar a disciplina
+        * Inserir o tópico/assunto (manualmente)
+        * Inserir a fonte da questão
+        * Inserir o diagnostico do erro.
+            O diagnóstico de erro possui:
+                * Lacuna Teórica 
+                * Falta de atenção
+                * Interpretação
+                * Pegadinha
+                * Falta de tempo
+            * Uma possível melhoria seria adicionar a possibilidade do usuário inserior outros diagnósticos de erro, isto é, permitir que o usuário insira um diagnóstico de erro que não está na lista.
+        * Por que eu errei? (Análise): o usuário insere uma explicação do por que ele errou a questão.
+        * Resumo da Correção (Pulo do Gato): o usuário insere um resumo da correção, buscando a explicação da questão e da resposta.
+* Existe o mapeamento da quantidade de erros. Atraves da visualizaçao do card "Total de erros"
+* Existe o card para verificar qual é a principal fonte de erro, baseado nos diagnósticos de erro.
+    * Uma melhoria a ser feita é mapear a quantidade de erros por disciplina.
+* Existe a funcionalidade de buscar por tópico, por disciplina e por diagnóstico de erro.
+* A visualização consiste em um grid que contém:
+    * Icone associado ao erro
+    * Tópico
+    * Diagnóstico
+    * Data
+    * Botão de excluir
+    * Campos: Por que eu errei? e Resumo da correção (Pulo do gato)
+    * Fonte da questão
+
+* Uma possivel melhoria é incluir o botão para editar o erro. Incluir a visualização por lista onde ao clicar será expandido o card para mostrar os campos: Por que eu errei? e Resumo da correção (Pulo do gato).
 
 
 ### INSIGHTS TUTOR
@@ -34,6 +84,8 @@ A intenção dessa parte da aplicação é gerenciar as disciplinas e o conteúd
                     * IA: O principal componente esta associado ao uso de IA (OpenAI GPT Utilizada atualmente) para a divisão do conteúdo programático em tópicos. O usuário insere o conteúdo programático e a IA divide em tópicos de forma automatica. Ainda em fase experimental, mas se mostrou um sucesso. Melhorar o prompt de extração é um dos caminhos.
 
 * Uma melhoria a ser feita, é os modos de visualização. Atualmente está em grid, implementar visualização em lista pode ser uma opção.
+
+* Uma melhoria a ser feita é a possibilidade de exportar um arquivo com todas as disciplinas atuais. Ao fazer isso, é possivel que um usuário compartilhe com outro e deixe mais fácil a obtenção de disciplinas. Para isso deve ser implementado no sistema a opção de leitura desse arquivo. O arquivo deve ser bem formatado para que seja lido corretamente.
 
 
 
