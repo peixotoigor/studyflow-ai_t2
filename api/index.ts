@@ -23,6 +23,23 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
+app.get('/api/v1/diagnose', async (_req, res) => {
+  try {
+    res.json({
+      hasDbUrl: !!process.env.DATABASE_URL,
+      dbUrlStart: process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 15) : null,
+      hasSupabaseUrl: !!process.env.SUPABASE_URL,
+      hasSupabaseKey: !!process.env.SUPABASE_ANON_KEY,
+      nodeEnv: process.env.NODE_ENV,
+      isVercel: !!process.env.VERCEL,
+      corsOrigin: process.env.CORS_ORIGIN,
+      dbStatus: dbReady ? 'initializing' : 'uninitialized'
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Lazy DB init — uma vez por cold start
 let dbReady: Promise<void> | null = null;
 const ensureDb = () => {
