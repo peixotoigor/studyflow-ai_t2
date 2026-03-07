@@ -22,11 +22,12 @@ import { DynamicSchedule } from '../components/DynamicSchedule';
 import { ErrorNotebook } from '../components/ErrorNotebook';
 import { SimulatedExams } from '../components/SimulatedExams';
 import { SavedNotes } from '../components/SavedNotes';
+import { EditalManager } from '../components/EditalManager';
 import { ProfileModal } from '../components/ProfileModal';
 import { BottomNavigation } from '../components/BottomNavigation';
 import { loadLocalSecret, saveLocalSecret } from '../utils/secrets';
 import { useTheme } from '../contexts/ThemeContext';
-import type { StudyPlan, Subject, ErrorLog, StudyLog, SimulatedExam, SavedNote, StudyModality, ImporterState, UserProfile } from '../types';
+import type { StudyPlan, Subject, ErrorLog, StudyLog, SimulatedExam, SavedNote, StudyModality, ImporterState, UserProfile, EditalFile } from '../types';
 
 const isValidUUID = (value?: string) => !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
@@ -54,6 +55,10 @@ const MigratedAppPage = () => {
     syllabus: null,
     selectedSubjects: new Set()
   });
+  
+  // Edital PDFs State
+  const [editalFiles, setEditalFiles] = useState<EditalFile[]>([]);
+  const [lastRemovedEdital, setLastRemovedEdital] = useState<EditalFile | null>(null);
 
   // Data hooks - só executam se houver token
   const { data: summaryData, isLoading: summaryLoading, error: summaryError } = useSummary();
@@ -633,7 +638,7 @@ const MigratedAppPage = () => {
   };
 
   const handleDeleteSavedNote = async (id: string) => {
-    if (window.confirm('Apagar?')) {
+    if (window.confirm('Apagar nota/insight?')) {
       try {
         await deleteSavedNote.mutateAsync(id);
         await pushSync();
@@ -643,6 +648,38 @@ const MigratedAppPage = () => {
       }
     }
   };
+
+  const handleUploadEdital = (file: Omit<EditalFile, 'id' | 'uploadedAt'> & { id?: string; uploadedAt?: Date }) => {
+    const newFile: EditalFile = {
+      ...file,
+      id: file.id || `edital-${Date.now()}`,
+      planId: currentPlanId || plans[0]?.id || '',
+      uploadedAt: file.uploadedAt || new Date(),
+    };
+    setEditalFiles(prev => [...prev, newFile]);
+    setLastRemovedEdital(null);
+  };
+
+  const handleRenameEdital = (id: string, name: string) => {
+    setEditalFiles(prev => prev.map(f => f.id === id ? { ...f, fileName: name } : f));
+  };
+
+  const handleDeleteEdital = (id: string) => {
+    const fileToRemove = editalFiles.find(f => f.id === id);
+    if (fileToRemove) {
+      setLastRemovedEdital(fileToRemove);
+      setEditalFiles(prev => prev.filter(f => f.id !== id));
+    }
+  };
+
+  const handleUndoDeleteEdital = () => {
+    if (lastRemovedEdital) {
+      setEditalFiles(prev => [...prev, lastRemovedEdital]);
+      setLastRemovedEdital(null);
+    }
+  };
+
+  const currentPlanEditalFiles = editalFiles.filter(f => f.planId === currentPlanId || plans[0]?.id === f.planId);
 
   const handleSessionComplete = async (
     subjectId: string,
@@ -1054,6 +1091,17 @@ const MigratedAppPage = () => {
           <SavedNotes
             notes={allSavedNotes}
             onDeleteNote={handleDeleteSavedNote}
+          />
+        );
+      case Screen.EDITAL_MANAGER:
+        return (
+          <EditalManager
+            files={currentPlanEditalFiles}
+            onUpload={handleUploadEdital}
+            onRename={handleRenameEdital}
+            onDelete={handleDeleteEdital}
+            onUndoDelete={handleUndoDeleteEdital}
+            lastRemoved={lastRemovedEdital}
           />
         );
       default:

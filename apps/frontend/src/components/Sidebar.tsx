@@ -54,6 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: Screen.ERROR_NOTEBOOK, label: 'Caderno de Erros', icon: 'assignment_late' }, 
         { id: Screen.SAVED_NOTES, label: 'Insights IA', icon: 'lightbulb' }, 
         { id: Screen.SUBJECTS, label: 'Disciplinas', icon: 'menu_book' },
+        { id: Screen.EDITAL_MANAGER, label: 'Edital (PDFs)', icon: 'picture_as_pdf' },
         { id: Screen.IMPORTER, label: 'Importador', icon: 'vertical_split' },
     ];
 

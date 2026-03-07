@@ -26,7 +26,8 @@ export enum Screen {
   ERROR_NOTEBOOK = 'ERROR_NOTEBOOK',
   SIMULATED_EXAMS = 'SIMULATED_EXAMS',
   SAVED_NOTES = 'SAVED_NOTES',
-  HISTORY = 'HISTORY'
+  HISTORY = 'HISTORY',
+  EDITAL_MANAGER = 'EDITAL_MANAGER'
 }
 
 export interface NavItem {
@@ -110,6 +111,16 @@ export interface ImporterState {
   progress: number;
   syllabus: SyllabusData | null;
   selectedSubjects: Set<string>;
+}
+
+export interface EditalFile {
+  id: string;
+  planId: string;
+  fileName: string;
+  dataUrl: string;
+  sizeBytes: number;
+  mimeType: string;
+  uploadedAt: Date | string;
 }
 
 export const getSubjectIcon = (subjectName: string): string => {
