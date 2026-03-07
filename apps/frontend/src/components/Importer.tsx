@@ -418,22 +418,31 @@ export const Importer: React.FC<ImporterProps> = ({ apiKey, model = 'gpt-4o-mini
                 
                 {/* Upload Area */}
                 {step === 'UPLOAD' && (
-                <div className="flex-1 flex flex-col items-center justify-center animate-in fade-in duration-500">
-                    <div className="bg-white dark:bg-[#1a1a2e] p-8 md:p-12 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 text-center max-w-xl w-full">
-                        <div className="size-24 bg-primary/10 rounded-full flex items-center justify-center text-primary mx-auto mb-6">
-                            <span className="material-symbols-outlined text-5xl">upload_file</span>
+                <div className="flex-1 flex flex-col items-center justify-center animate-in fade-in duration-500 w-full">
+                    <div className="text-center mb-8">
+                        <div className="size-20 bg-primary/10 rounded-full flex items-center justify-center text-primary mx-auto mb-4">
+                            <span className="material-symbols-outlined text-4xl">auto_awesome</span>
                         </div>
-                        <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-3">
-                            Extrair Edital
+                        <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight mb-3">
+                            Extrair Conteúdo do Edital
                         </h2>
-                        <p className="text-slate-500 dark:text-slate-400 mb-8 max-w-sm mx-auto leading-relaxed">
-                            A Inteligência Artificial vai ler seu PDF e criar automaticamente as disciplinas e tópicos.
+                        <p className="text-slate-500 dark:text-slate-400 max-w-lg mx-auto leading-relaxed">
+                            Nossa Inteligência Artificial lerá seu PDF e organizará automaticamente todas as disciplinas e tópicos para você começar a estudar agora.
                         </p>
-                        
-                        <div className="flex flex-col gap-4">
+                    </div>
+
+                    <div className={`grid grid-cols-1 ${editalFiles.length > 0 ? 'md:grid-cols-2 max-w-5xl' : 'max-w-xl'} w-full gap-6`}>
+                        {/* Card: Upload File */}
+                        <div className="bg-white dark:bg-[#1a1a2e] p-8 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 flex flex-col items-center text-center h-full hover:border-primary/50 transition-colors">
+                            <span className="material-symbols-outlined text-5xl text-slate-400 mb-6 font-light">upload_file</span>
+                            <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Enviar Arquivo PDF</h3>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mb-8 flex-1">
+                                Selecione um PDF textual do seu computador (sem imagem escaneada). Limite de análise das primeiras 100 páginas.
+                            </p>
+                            
                             <button
                                 onClick={() => fileInputRef.current?.click()}
-                                className="group relative w-full flex-1 flex items-center justify-center gap-3 bg-primary text-white py-4 px-6 rounded-2xl font-bold text-lg hover:bg-blue-600 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] overflow-hidden"
+                                className="group relative w-full flex items-center justify-center gap-3 bg-primary text-white py-4 px-6 rounded-2xl font-bold text-lg hover:bg-blue-600 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] overflow-hidden"
                             >
                                 <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out z-0"></div>
                                 <span className="material-symbols-outlined relative z-10 text-2xl">drive_folder_upload</span>
@@ -449,40 +458,49 @@ export const Importer: React.FC<ImporterProps> = ({ apiKey, model = 'gpt-4o-mini
                                     if (file) processFile(file);
                                 }}
                             />
+                        </div>
 
-                            {editalFiles.length > 0 && (
-                                <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-800">
-                                    <p className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Ou selecione um Edital salvo</p>
-                                    <div className="flex flex-col gap-3">
-                                        {editalFiles.map((edital) => (
-                                            <button
-                                                key={edital.id}
-                                                onClick={async () => {
-                                                    try {
-                                                        const response = await fetch(edital.dataUrl);
-                                                        const blob = await response.blob();
-                                                        const file = new File([blob], edital.fileName, { type: 'application/pdf' });
-                                                        processFile(file);
-                                                    } catch (e) {
-                                                        alert('Erro ao carregar edital salvo. Tente novamente.');
-                                                    }
-                                                }}
-                                                className="flex items-center gap-3 p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-primary dark:hover:border-primary bg-slate-50 dark:bg-slate-800/50 hover:bg-blue-50 dark:hover:bg-primary/5 transition-all w-full text-left group"
-                                            >
-                                                <span className="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors">description</span>
-                                                <span className="font-medium text-slate-700 dark:text-slate-300 truncate w-full">{edital.fileName}</span>
-                                                <span className="material-symbols-outlined text-primary opacity-0 group-hover:opacity-100 transition-opacity ml-auto">arrow_forward</span>
-                                            </button>
-                                        ))}
-                                    </div>
+                        {/* Card: Saved Editais (Only show if available) */}
+                        {editalFiles.length > 0 && (
+                            <div className="bg-white dark:bg-[#1a1a2e] p-8 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 flex flex-col h-full hover:border-primary/50 transition-colors">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <span className="material-symbols-outlined text-3xl text-primary font-light">snippet_folder</span>
+                                    <h3 className="text-xl font-bold text-slate-800 dark:text-white">Meus Editais Salvos</h3>
                                 </div>
-                            )}
-                        </div>
-                        
-                        <div className="mt-8 flex items-center justify-center gap-2 text-xs text-slate-400 dark:text-slate-500 font-medium">
-                            <span className="material-symbols-outlined text-[16px]">lock</span>
-                            Somente PDFs baseados em texto (sem senha)
-                        </div>
+                                
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+                                    Escolha um edital que você já enviou anteriormente para o seu plano:
+                                </p>
+                                
+                                <div className="flex flex-col gap-3 overflow-y-auto pr-2 custom-scrollbar flex-1 max-h-[300px]">
+                                    {editalFiles.map((edital) => (
+                                        <button
+                                            key={edital.id}
+                                            onClick={async () => {
+                                                try {
+                                                    const response = await fetch(edital.dataUrl);
+                                                    const blob = await response.blob();
+                                                    const file = new File([blob], edital.fileName, { type: 'application/pdf' });
+                                                    processFile(file);
+                                                } catch (e) {
+                                                    alert('Erro ao carregar edital salvo. Tente novamente.');
+                                                }
+                                            }}
+                                            className="flex flex-col items-start gap-1 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-primary dark:hover:border-primary bg-slate-50 dark:bg-slate-800/50 hover:bg-blue-50 dark:hover:bg-primary/5 transition-all text-left group w-full relative overflow-hidden shrink-0"
+                                        >
+                                            <div className="flex justify-between items-center w-full">
+                                                <span className="font-bold text-slate-700 dark:text-slate-200 truncate group-hover:text-primary transition-colors">{edital.fileName}</span>
+                                                <span className="material-symbols-outlined text-primary opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">chevron_right</span>
+                                            </div>
+                                            <span className="text-[11px] font-medium text-slate-400 flex items-center gap-1">
+                                                <span className="material-symbols-outlined text-[12px]">description</span> 
+                                                Usar este arquivo agora
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
