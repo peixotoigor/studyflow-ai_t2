@@ -1084,6 +1084,7 @@ const MigratedAppPage = () => {
             onImport={handleImportSubjects}
             state={importerState}
             setState={setImporterState}
+            editalFiles={currentPlanEditalFiles}
           />
         );
       case Screen.DYNAMIC_SCHEDULE:

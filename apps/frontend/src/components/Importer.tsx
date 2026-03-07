@@ -22,9 +22,10 @@ interface ImporterProps {
     onImport?: (subjects: Subject[]) => void;
     state: ImporterState;
     setState: React.Dispatch<React.SetStateAction<ImporterState>>;
+    editalFiles?: { id: string, fileName: string, dataUrl: string }[];
 }
 
-export const Importer: React.FC<ImporterProps> = ({ apiKey, model = 'gpt-4o-mini', onImport, state, setState }) => {
+export const Importer: React.FC<ImporterProps> = ({ apiKey, model = 'gpt-4o-mini', onImport, state, setState, editalFiles = [] }) => {
     const { step, fileName, processingStatus, progress, syllabus, selectedSubjects } = state;
     
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -138,7 +139,7 @@ export const Importer: React.FC<ImporterProps> = ({ apiKey, model = 'gpt-4o-mini
 
         try {
             // 1. Extração do PDF (Vai de 0% a 40%)
-            const fullText = await extractTextFromPdf(file);
+            const pdfText = await extractTextFromPdf(file);
             
             // =================================================================================
             // ETAPA 1: FILTRAGEM DE CONTEXTO (Locating the Syllabus)
@@ -161,7 +162,7 @@ export const Importer: React.FC<ImporterProps> = ({ apiKey, model = 'gpt-4o-mini
 
             // Limite de caracteres para evitar "Failed to fetch" por payload excessivo
             const MAX_CHARS_FOR_FILTER = 150000;
-            const textForFilter = fullText.substring(0, MAX_CHARS_FOR_FILTER);
+            const textForFilter = pdfText.substring(0, MAX_CHARS_FOR_FILTER);
 
             const filterResponse = await fetch('https://api.openai.com/v1/chat/completions', {
                 method: 'POST',
@@ -197,7 +198,7 @@ export const Importer: React.FC<ImporterProps> = ({ apiKey, model = 'gpt-4o-mini
                 console.log("Contexto isolado com sucesso. Tamanho:", relevantText.length);
             }
 
-            const textToProcess = (relevantText && relevantText.length > 100) ? relevantText : fullText.substring(0, 50000);
+            const textToProcess = (relevantText && relevantText.length > 100) ? relevantText : pdfText.substring(0, 50000);
 
             // =================================================================================
             // ETAPA 2: ESTRUTURAÇÃO (JSON Extraction)
@@ -417,33 +418,74 @@ export const Importer: React.FC<ImporterProps> = ({ apiKey, model = 'gpt-4o-mini
                 
                 {/* Upload Area */}
                 {step === 'UPLOAD' && (
-                    <div 
-                        className="flex-1 bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm border-2 border-dashed border-border-light dark:border-border-dark hover:border-primary/50 transition-colors flex flex-col items-center justify-center p-8 text-center cursor-pointer min-h-[300px]"
-                        onDragOver={handleDragOver}
-                        onDrop={handleDrop}
-                        onClick={() => fileInputRef.current?.click()}
-                    >
-                        <input 
-                            type="file" 
-                            ref={fileInputRef} 
-                            className="hidden" 
-                            accept="application/pdf"
-                            onChange={handleFileChange}
-                        />
-                        <div className="bg-primary/10 p-4 rounded-full mb-4">
-                            <span className="material-symbols-outlined text-primary text-4xl">upload_file</span>
+                <div className="flex-1 flex flex-col items-center justify-center animate-in fade-in duration-500">
+                    <div className="bg-white dark:bg-[#1a1a2e] p-8 md:p-12 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 text-center max-w-xl w-full">
+                        <div className="size-24 bg-primary/10 rounded-full flex items-center justify-center text-primary mx-auto mb-6">
+                            <span className="material-symbols-outlined text-5xl">upload_file</span>
                         </div>
-                        <h3 className="text-lg font-bold text-text-primary-light dark:text-white">Upload do Edital (PDF)</h3>
-                        <p className="text-sm text-text-secondary-light dark:text-gray-400 mt-2">
-                            Arraste e solte ou clique para selecionar.
+                        <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-3">
+                            Extrair Edital
+                        </h2>
+                        <p className="text-slate-500 dark:text-slate-400 mb-8 max-w-sm mx-auto leading-relaxed">
+                            A Inteligência Artificial vai ler seu PDF e criar automaticamente as disciplinas e tópicos.
                         </p>
-                        {!apiKey && (
-                            <p className="text-xs text-red-500 mt-4 font-bold bg-red-50 dark:bg-red-900/20 px-3 py-1 rounded-full">
-                                Chave OpenAI necessária (Configure no Perfil)
-                            </p>
-                        )}
+                        
+                        <div className="flex flex-col gap-4">
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                className="group relative w-full flex-1 flex items-center justify-center gap-3 bg-primary text-white py-4 px-6 rounded-2xl font-bold text-lg hover:bg-blue-600 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] overflow-hidden"
+                            >
+                                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out z-0"></div>
+                                <span className="material-symbols-outlined relative z-10 text-2xl">drive_folder_upload</span>
+                                <span className="relative z-10">Fazer Upload de PDF Novo</span>
+                            </button>
+                            <input
+                                type="file"
+                                accept=".pdf"
+                                className="hidden"
+                                ref={fileInputRef}
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) processFile(file);
+                                }}
+                            />
+
+                            {editalFiles.length > 0 && (
+                                <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-800">
+                                    <p className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Ou selecione um Edital salvo</p>
+                                    <div className="flex flex-col gap-3">
+                                        {editalFiles.map((edital) => (
+                                            <button
+                                                key={edital.id}
+                                                onClick={async () => {
+                                                    try {
+                                                        const response = await fetch(edital.dataUrl);
+                                                        const blob = await response.blob();
+                                                        const file = new File([blob], edital.fileName, { type: 'application/pdf' });
+                                                        processFile(file);
+                                                    } catch (e) {
+                                                        alert('Erro ao carregar edital salvo. Tente novamente.');
+                                                    }
+                                                }}
+                                                className="flex items-center gap-3 p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-primary dark:hover:border-primary bg-slate-50 dark:bg-slate-800/50 hover:bg-blue-50 dark:hover:bg-primary/5 transition-all w-full text-left group"
+                                            >
+                                                <span className="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors">description</span>
+                                                <span className="font-medium text-slate-700 dark:text-slate-300 truncate w-full">{edital.fileName}</span>
+                                                <span className="material-symbols-outlined text-primary opacity-0 group-hover:opacity-100 transition-opacity ml-auto">arrow_forward</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        
+                        <div className="mt-8 flex items-center justify-center gap-2 text-xs text-slate-400 dark:text-slate-500 font-medium">
+                            <span className="material-symbols-outlined text-[16px]">lock</span>
+                            Somente PDFs baseados em texto (sem senha)
+                        </div>
                     </div>
-                )}
+                </div>
+            )}
 
                 {/* Processing State */}
                 {step === 'PROCESSING' && (
