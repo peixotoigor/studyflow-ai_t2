@@ -41,7 +41,8 @@ export const EditalManager: React.FC<EditalManagerProps> = ({ userId, files, onU
       const fileExt = file.name.split('.').pop();
       const safeName = file.name.replace(/[^\x00-\x7F]/g, "").replace(/\s+/g, "_");
       const uniqueFileName = `${Date.now()}-${safeName}`;
-      const filePath = `editais/${userId}/${uniqueFileName}`;
+      // Path segmented by userId for isolation - bucket itself is 'editais'
+      const filePath = `${userId}/${uniqueFileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('editais')
@@ -102,7 +103,16 @@ export const EditalManager: React.FC<EditalManagerProps> = ({ userId, files, onU
 
       if (!supabase) {
         setUploadingFiles(prev => prev.filter(f => f.id !== tempId));
-        onUpload({ id: `edital-${Date.now()}`, planId: '', fileName: file.name, dataUrl: localUrl, sizeBytes: file.size, mimeType: file.type, uploadedAt: new Date() });
+        onUpload({ 
+          id: `edital-${Date.now()}`, 
+          planId: '', 
+          fileName: file.name, 
+          dataUrl: localUrl, 
+          sizeBytes: file.size, 
+          mimeType: file.type, 
+          uploadedAt: new Date(),
+          isLocal: true // Explicitly mark as local-only since Supabase is missing
+        });
         setIsUploading(false);
         e.target.value = '';
         return;
@@ -130,8 +140,8 @@ export const EditalManager: React.FC<EditalManagerProps> = ({ userId, files, onU
         const fileExt = file.name.split('.').pop();
         const safeName = file.name.replace(/[^\x00-\x7F]/g, "").replace(/\s+/g, "_");
         const uniqueFileName = `${Date.now()}-${safeName}`;
-        // Path segmented by userId for isolation
-        const filePath = `editais/${userId}/${uniqueFileName}`;
+        // Path segmented by userId for isolation - bucket itself is 'editais'
+        const filePath = `${userId}/${uniqueFileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from('editais')
