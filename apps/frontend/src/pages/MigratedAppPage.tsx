@@ -88,6 +88,18 @@ const MigratedAppPage = () => {
   const { data: plans = [], isLoading: plansLoading, error: plansError } = usePlans();
   const { data: userData, isLoading: userLoading, error: userError } = useUser();
 
+  // Derived data
+  const currentPlan = useMemo(() => plans.find(p => p.id === currentPlanId), [plans, currentPlanId]);
+
+  // Sync state with backend plans
+  useEffect(() => {
+    if (currentPlan?.editalFiles) {
+      setEditalFiles(currentPlan.editalFiles);
+    } else {
+      setEditalFiles([]);
+    }
+  }, [currentPlan?.id]);
+
   // Mutations
   const createPlan = useCreatePlan();
   const updatePlan = useUpdatePlan();
@@ -482,17 +494,6 @@ const MigratedAppPage = () => {
   const syncIcon = syncState === 'syncing' ? 'sync' : syncState === 'ok' ? 'cloud_done' : syncState === 'error' ? 'error' : 'cloud_queue';
   const syncColor = syncState === 'error' ? '#ef4444' : syncState === 'ok' ? '#16a34a' : syncState === 'syncing' ? '#3b82f6' : '#6b7280';
 
-  // Derived data
-  const currentPlan = plans.find(p => p.id === currentPlanId);
-
-  // Sync state with backend plans
-  useEffect(() => {
-    if (currentPlan?.editalFiles) {
-      setEditalFiles(currentPlan.editalFiles);
-    } else {
-      setEditalFiles([]);
-    }
-  }, [currentPlan?.id]);
   const currentPlanSubjects = safeSummaryData.plans.find(p => p.id === currentPlanId)?.subjects || [];
   const currentPlanErrorLogs = safeSummaryData.errorLogs.filter(log => {
     const subject = currentPlanSubjects.find(s => s.id === log.subjectId);
