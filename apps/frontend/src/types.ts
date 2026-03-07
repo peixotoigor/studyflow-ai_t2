@@ -122,6 +122,7 @@ export interface EditalFile {
   sizeBytes: number;
   mimeType: string;
   uploadedAt: Date | string;
+  isLocal?: boolean;
 }
 
 export const getSubjectIcon = (subjectName: string): string => {
