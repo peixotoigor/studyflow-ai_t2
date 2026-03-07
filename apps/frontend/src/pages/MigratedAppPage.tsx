@@ -1100,7 +1100,32 @@ const MigratedAppPage = () => {
                 }
               }
             }}
-            onRestoreSubjects={() => {}}
+            onRestoreSubjects={async (subjects) => {
+              try {
+                let targetPlanId = currentPlanId || plans[0]?.id;
+                if (!targetPlanId) return;
+                for (const s of subjects) {
+                  const created = await createSubject.mutateAsync({
+                    planId: targetPlanId,
+                    name: s.name,
+                    weight: s.weight ?? undefined,
+                    color: s.color ?? undefined,
+                    active: s.active ?? true
+                  });
+                  if (s.topics && s.topics.length > 0) {
+                    await Promise.allSettled(
+                      s.topics.map(t =>
+                        createTopic.mutateAsync({ subjectId: created.id, name: t.name, completed: t.completed ?? false })
+                      )
+                    );
+                  }
+                }
+                await pushSync();
+              } catch (err) {
+                console.error('Erro ao restaurar disciplinas:', err);
+                alert('Erro ao desfazer exclusão. Tente novamente.');
+              }
+            }}
             apiKey={userProfile.openAiApiKey}
             model={userProfile.openAiModel}
           />
