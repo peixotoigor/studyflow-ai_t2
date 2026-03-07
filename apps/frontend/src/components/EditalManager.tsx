@@ -65,6 +65,24 @@ export const EditalManager: React.FC<EditalManagerProps> = ({ userId, files, onU
       }
 
       try {
+        if (supabase) {
+          // Verify bucket and auth consistency
+          const { data: buckets } = await supabase.storage.listBuckets();
+          const hasBucket = buckets?.some((b: any) => b.name === 'editais');
+          const { data: { user: sbUser } } = await supabase.auth.getUser();
+          
+          console.log('[Debug Supabase]', {
+            bucketExists: hasBucket,
+            propUserId: userId,
+            supabaseUserId: sbUser?.id,
+            match: userId === sbUser?.id
+          });
+
+          if (!hasBucket) {
+            throw new Error('The resource was not found'); // Simulate bucket missing error
+          }
+        }
+
         const fileExt = file.name.split('.').pop();
         const safeName = file.name.replace(/[^\x00-\x7F]/g, "").replace(/\s+/g, "_");
         const uniqueFileName = `${Date.now()}-${safeName}`;
@@ -96,10 +114,20 @@ export const EditalManager: React.FC<EditalManagerProps> = ({ userId, files, onU
         });
         
       } catch (err: any) {
-        console.error('Erro no upload para Supabase:', err);
+        console.error('Erro detalhado no upload para Supabase:', err);
         setUploadingFiles(prev => prev.filter(f => f.id !== tempId));
         URL.revokeObjectURL(localUrl);
-        alert('Falha ao salvar no Supabase. O arquivo foi removido da lista.');
+        
+        let errorMsg = 'Falha ao salvar no Supabase.';
+        if (err.message === 'The resource was not found') {
+          errorMsg += ' Verifique se o bucket "editais" foi criado no painel do Supabase.';
+        } else if (err.status === 403 || err.message?.includes('policy')) {
+          errorMsg += ' Erro de permissão. Certifique-se de que as políticas RLS foram aplicadas.';
+        } else {
+          errorMsg += ` Detalhes: ${err.message || 'Erro desconhecido'}`;
+        }
+        
+        alert(errorMsg + ' O arquivo foi removido da lista.');
       } finally {
         setIsUploading(false);
         e.target.value = '';
