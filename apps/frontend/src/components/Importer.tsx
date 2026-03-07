@@ -22,7 +22,7 @@ interface ImporterProps {
     onImport?: (subjects: Subject[]) => void;
     state: ImporterState;
     setState: React.Dispatch<React.SetStateAction<ImporterState>>;
-    editalFiles?: { id: string, fileName: string, dataUrl: string }[];
+    editalFiles?: { id: string, fileName: string, dataUrl: string, sizeBytes: number, uploadedAt: Date | string }[];
 }
 
 export const Importer: React.FC<ImporterProps> = ({ apiKey, model = 'gpt-4o-mini', onImport, state, setState, editalFiles = [] }) => {
@@ -418,35 +418,24 @@ export const Importer: React.FC<ImporterProps> = ({ apiKey, model = 'gpt-4o-mini
                 
                 {/* Upload Area */}
                 {step === 'UPLOAD' && (
-                <div className="flex-1 flex flex-col items-center justify-center animate-in fade-in duration-500 w-full">
-                    <div className="text-center mb-8">
-                        <div className="size-20 bg-primary/10 rounded-full flex items-center justify-center text-primary mx-auto mb-4">
-                            <span className="material-symbols-outlined text-4xl">auto_awesome</span>
-                        </div>
-                        <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight mb-3">
-                            Extrair Conteúdo do Edital
-                        </h2>
-                        <p className="text-slate-500 dark:text-slate-400 max-w-lg mx-auto leading-relaxed">
-                            Nossa Inteligência Artificial lerá seu PDF e organizará automaticamente todas as disciplinas e tópicos para você começar a estudar agora.
-                        </p>
-                    </div>
-
-                    <div className={`grid grid-cols-1 ${editalFiles.length > 0 ? 'md:grid-cols-2 max-w-5xl' : 'max-w-xl'} w-full gap-6`}>
-                        {/* Card: Upload File */}
-                        <div className="bg-white dark:bg-[#1a1a2e] p-8 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 flex flex-col items-center text-center h-full hover:border-primary/50 transition-colors">
-                            <span className="material-symbols-outlined text-5xl text-slate-400 mb-6 font-light">upload_file</span>
-                            <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Enviar Arquivo PDF</h3>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 mb-8 flex-1">
-                                Selecione um PDF textual do seu computador (sem imagem escaneada). Limite de análise das primeiras 100 páginas.
+                <div className="flex-1 flex flex-col animate-in fade-in duration-500 w-full overflow-hidden">
+                    <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-200 dark:border-slate-800">
+                        <div>
+                            <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                                Selecione o Edital
+                            </h2>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">
+                                Escolha um arquivo salvo ou envie um novo para começar.
                             </p>
-                            
+                        </div>
+                        
+                        <div className="flex items-center gap-3">
                             <button
                                 onClick={() => fileInputRef.current?.click()}
-                                className="group relative w-full flex items-center justify-center gap-3 bg-primary text-white py-4 px-6 rounded-2xl font-bold text-lg hover:bg-blue-600 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] overflow-hidden"
+                                className="flex items-center gap-2 bg-primary text-white py-2.5 px-5 rounded-xl font-bold text-sm hover:bg-blue-600 transition-all hover:shadow-lg hover:shadow-primary/20 active:scale-[0.98]"
                             >
-                                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out z-0"></div>
-                                <span className="material-symbols-outlined relative z-10 text-2xl">drive_folder_upload</span>
-                                <span className="relative z-10">Fazer Upload de PDF Novo</span>
+                                <span className="material-symbols-outlined text-xl">upload_file</span>
+                                <span>Fazer Upload Novo (Max 5MB)</span>
                             </button>
                             <input
                                 type="file"
@@ -459,46 +448,57 @@ export const Importer: React.FC<ImporterProps> = ({ apiKey, model = 'gpt-4o-mini
                                 }}
                             />
                         </div>
+                    </div>
 
-                        {/* Card: Saved Editais (Only show if available) */}
-                        {editalFiles.length > 0 && (
-                            <div className="bg-white dark:bg-[#1a1a2e] p-8 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 flex flex-col h-full hover:border-primary/50 transition-colors">
-                                <div className="flex items-center gap-3 mb-6">
-                                    <span className="material-symbols-outlined text-3xl text-primary font-light">snippet_folder</span>
-                                    <h3 className="text-xl font-bold text-slate-800 dark:text-white">Meus Editais Salvos</h3>
-                                </div>
-                                
-                                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-                                    Escolha um edital que você já enviou anteriormente para o seu plano:
-                                </p>
-                                
-                                <div className="flex flex-col gap-3 overflow-y-auto pr-2 custom-scrollbar flex-1 max-h-[300px]">
-                                    {editalFiles.map((edital) => (
-                                        <button
-                                            key={edital.id}
-                                            onClick={async () => {
-                                                try {
-                                                    const response = await fetch(edital.dataUrl);
-                                                    const blob = await response.blob();
-                                                    const file = new File([blob], edital.fileName, { type: 'application/pdf' });
-                                                    processFile(file);
-                                                } catch (e) {
-                                                    alert('Erro ao carregar edital salvo. Tente novamente.');
-                                                }
-                                            }}
-                                            className="flex flex-col items-start gap-1 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-primary dark:hover:border-primary bg-slate-50 dark:bg-slate-800/50 hover:bg-blue-50 dark:hover:bg-primary/5 transition-all text-left group w-full relative overflow-hidden shrink-0"
-                                        >
-                                            <div className="flex justify-between items-center w-full">
-                                                <span className="font-bold text-slate-700 dark:text-slate-200 truncate group-hover:text-primary transition-colors">{edital.fileName}</span>
-                                                <span className="material-symbols-outlined text-primary opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">chevron_right</span>
+                    <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                        {editalFiles.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-8">
+                                {editalFiles.map((edital) => (
+                                    <button
+                                        key={edital.id}
+                                        onClick={async () => {
+                                            try {
+                                                const response = await fetch(edital.dataUrl);
+                                                const blob = await response.blob();
+                                                const file = new File([blob], edital.fileName, { type: 'application/pdf' });
+                                                processFile(file);
+                                            } catch (e) {
+                                                alert('Erro ao carregar edital salvo. Tente novamente.');
+                                            }
+                                        }}
+                                        className="group flex flex-col items-start gap-4 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1a2e] hover:border-primary dark:hover:border-primary hover:shadow-xl hover:shadow-primary/5 transition-all text-left relative overflow-hidden"
+                                    >
+                                        <div className="size-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                                            <span className="material-symbols-outlined text-2xl font-light">description</span>
+                                        </div>
+                                        
+                                        <div className="flex flex-col gap-1 w-full mt-auto">
+                                            <span className="font-bold text-slate-800 dark:text-white truncate pr-6">{edital.fileName}</span>
+                                            <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
+                                                <span>{(edital.sizeBytes / 1024 / 1024).toFixed(1)} MB</span>
+                                                <span className="size-1 bg-slate-200 dark:bg-slate-700 rounded-full"></span>
+                                                <span>Clique para extrair</span>
                                             </div>
-                                            <span className="text-[11px] font-medium text-slate-400 flex items-center gap-1">
-                                                <span className="material-symbols-outlined text-[12px]">description</span> 
-                                                Usar este arquivo agora
-                                            </span>
-                                        </button>
-                                    ))}
-                                </div>
+                                        </div>
+                                        
+                                        <span className="material-symbols-outlined absolute top-4 right-4 text-primary opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all">arrow_forward</span>
+                                    </button>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-center p-8 bg-slate-50/50 dark:bg-slate-900/20 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+                                <span className="material-symbols-outlined text-6xl text-slate-300 dark:text-slate-700 mb-4 font-light">draft</span>
+                                <h3 className="text-xl font-bold text-slate-500 dark:text-slate-400 mb-2">Nenhum edital disponível</h3>
+                                <p className="text-sm text-slate-400 dark:text-slate-500 max-w-sm mb-6">
+                                    Envie um novo arquivo PDF para que a Inteligência Artificial possa extrair os conteúdos.
+                                </p>
+                                <button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="text-primary font-bold flex items-center gap-2 hover:underline"
+                                >
+                                    <span className="material-symbols-outlined">add_circle</span>
+                                    Fazer upload agora
+                                </button>
                             </div>
                         )}
                     </div>
