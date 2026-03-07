@@ -1252,6 +1252,7 @@ const MigratedAppPage = () => {
         return (
           <SavedNotes
             notes={allSavedNotes}
+            subjects={currentPlanSubjects}
             onDeleteNote={handleDeleteSavedNote}
           />
         );
