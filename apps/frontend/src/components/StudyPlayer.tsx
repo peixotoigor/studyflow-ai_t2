@@ -428,10 +428,24 @@ export const StudyPlayer: React.FC<StudyPlayerProps> = ({
                                 <span>{isPlaying ? 'Fluxo Ativo' : 'Pausado'}</span>
                             </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex items-center gap-2">
                              <div className="bg-primary/10 text-primary px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider">
                                  {currentItemIndex + 1} de {todaysQueue.length}
                              </div>
+                             <button
+                                 onClick={() => setIsChatOpen(true)}
+                                 className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-600 text-white rounded-xl shadow-lg shadow-purple-500/20 hover:shadow-purple-500/35 transition-all active:scale-95 group"
+                             >
+                                 <span className="relative">
+                                     <span className="material-symbols-outlined text-lg">smart_toy</span>
+                                     <span className="absolute -top-1 -right-1 flex size-2">
+                                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                         <span className="relative inline-flex rounded-full size-2 bg-green-400"></span>
+                                     </span>
+                                 </span>
+                                 <span className="font-bold text-sm">Tutor IA</span>
+                                 <span className="material-symbols-outlined text-white/60 group-hover:text-white group-hover:translate-x-0.5 transition-all text-lg">arrow_forward</span>
+                             </button>
                         </div>
                     </div>
 
@@ -558,26 +572,6 @@ export const StudyPlayer: React.FC<StudyPlayerProps> = ({
                         </div>
                     </div>
 
-                    {/* TUTOR IA - Botão Inline Proeminente */}
-                    <button
-                        onClick={() => setIsChatOpen(true)}
-                        className="w-full flex items-center gap-4 p-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-600 text-white rounded-2xl shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all active:scale-[0.98] group"
-                    >
-                        <div className="relative shrink-0">
-                            <div className="bg-white/20 backdrop-blur-sm p-3 rounded-xl group-hover:bg-white/30 transition-colors">
-                                <span className="material-symbols-outlined text-2xl">smart_toy</span>
-                            </div>
-                            <span className="absolute -top-1 -right-1 flex size-3">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full size-3 bg-green-400 ring-2 ring-white/30"></span>
-                            </span>
-                        </div>
-                        <div className="flex-1 text-left">
-                            <h3 className="font-bold text-base leading-tight">Consultar Tutor IA</h3>
-                            <p className="text-white/70 text-xs mt-0.5">Tire dúvidas, peça resumos e explicações sobre {currentItem.subject.name}</p>
-                        </div>
-                        <span className="material-symbols-outlined text-white/60 group-hover:text-white group-hover:translate-x-1 transition-all text-2xl">arrow_forward</span>
-                    </button>
                 </div>
 
                 {/* FILA DE ESTUDOS DO DIA */}
