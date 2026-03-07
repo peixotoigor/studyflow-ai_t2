@@ -30,11 +30,20 @@ export const EditalManager: React.FC<EditalManagerProps> = ({ files, onUpload, o
       if (file.type !== 'application/pdf') { alert('Envie apenas PDFs.'); return; }
       if (file.size > 15 * 1024 * 1024) { alert('Arquivo muito grande (15MB).'); return; }
       const id = `edital-${Date.now()}`;
-      const reader = new FileReader();
-      reader.onload = () => {
-          onUpload({ id, planId: '', fileName: file.name, dataUrl: reader.result as string, sizeBytes: file.size, mimeType: file.type, uploadedAt: new Date() });
-      };
-      reader.readAsDataURL(file);
+      
+      // Use URL.createObjectURL instead of Base64 FileReader to avoid huge RAM spikes
+      const objectUrl = URL.createObjectURL(file);
+      
+      onUpload({ 
+        id, 
+        planId: '', 
+        fileName: file.name, 
+        dataUrl: objectUrl, 
+        sizeBytes: file.size, 
+        mimeType: file.type, 
+        uploadedAt: new Date() 
+      });
+      
       e.target.value = '';
   };
 

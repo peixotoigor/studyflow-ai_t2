@@ -61,6 +61,7 @@ export const Importer: React.FC<ImporterProps> = ({ apiKey, model = 'gpt-4o-mini
             const PROGRESS_ALLOCATION = 40;
 
             for (let i = 1; i <= maxPages; i++) {
+                let page = null;
                 // Cálculo granular do progresso baseada na página atual
                 const currentProgress = Math.round((i / maxPages) * PROGRESS_ALLOCATION);
                 
@@ -71,14 +72,28 @@ export const Importer: React.FC<ImporterProps> = ({ apiKey, model = 'gpt-4o-mini
                 }));
                 
                 try {
-                    const page = await pdf.getPage(i);
+                    page = await pdf.getPage(i);
                     const textContent = await page.getTextContent();
                     const pageText = textContent.items.map((item: any) => item.str).join(' ');
                     fullText += pageText + '\n';
                 } catch (pageError) {
                     console.warn(`Erro ao ler página ${i}`, pageError);
+                } finally {
+                    if (page) {
+                        try {
+                            page.cleanup();
+                        } catch (e) {
+                            // Ignora erro silêncioso no cleanup
+                        }
+                    }
                 }
             }
+            
+            // Força a liberação da memória principal do PDF no WebWorker
+            try {
+                if (pdf) await pdf.destroy();
+                if (loadingTask) await loadingTask.destroy();
+            } catch(e) { /* ignore */ }
 
             // Verificação de PDF Escaneado (Imagem)
             if (fullText.trim().length < 50 && pdf.numPages > 0) {

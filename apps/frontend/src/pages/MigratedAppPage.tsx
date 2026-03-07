@@ -60,6 +60,28 @@ const MigratedAppPage = () => {
   const [editalFiles, setEditalFiles] = useState<EditalFile[]>([]);
   const [lastRemovedEdital, setLastRemovedEdital] = useState<EditalFile | null>(null);
 
+  const editalFilesRef = useRef(editalFiles);
+  const lastRemovedRef = useRef(lastRemovedEdital);
+
+  useEffect(() => {
+    editalFilesRef.current = editalFiles;
+    lastRemovedRef.current = lastRemovedEdital;
+  }, [editalFiles, lastRemovedEdital]);
+
+  useEffect(() => {
+    // Cleanup URLs on unmount to prevent memory leaks
+    return () => {
+      editalFilesRef.current.forEach(f => {
+        if (f.dataUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(f.dataUrl);
+        }
+      });
+      if (lastRemovedRef.current && lastRemovedRef.current.dataUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(lastRemovedRef.current.dataUrl);
+      }
+    };
+  }, []);
+
   // Data hooks - só executam se houver token
   const { data: summaryData, isLoading: summaryLoading, error: summaryError } = useSummary();
   const { data: plans = [], isLoading: plansLoading, error: plansError } = usePlans();
@@ -656,6 +678,9 @@ const MigratedAppPage = () => {
       planId: currentPlanId || plans[0]?.id || '',
       uploadedAt: file.uploadedAt || new Date(),
     };
+    if (lastRemovedEdital && lastRemovedEdital.dataUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(lastRemovedEdital.dataUrl);
+    }
     setEditalFiles(prev => [...prev, newFile]);
     setLastRemovedEdital(null);
   };
@@ -667,6 +692,9 @@ const MigratedAppPage = () => {
   const handleDeleteEdital = (id: string) => {
     const fileToRemove = editalFiles.find(f => f.id === id);
     if (fileToRemove) {
+      if (lastRemovedEdital && lastRemovedEdital.id !== id && lastRemovedEdital.dataUrl.startsWith('blob:')) {
+         URL.revokeObjectURL(lastRemovedEdital.dataUrl);
+      }
       setLastRemovedEdital(fileToRemove);
       setEditalFiles(prev => prev.filter(f => f.id !== id));
     }
