@@ -13,6 +13,7 @@ export const SimulatedExams: React.FC<SimulatedExamsProps> = ({ exams, onAddExam
     const [isEditing, setIsEditing] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const [timeRange, setTimeRange] = useState<'all' | 'week' | 'month' | 'year'>('all');
     
     // Form States
     const [title, setTitle] = useState('');
@@ -76,17 +77,45 @@ export const SimulatedExams: React.FC<SimulatedExamsProps> = ({ exams, onAddExam
 
     // Componente de Gráfico de Linha para Evolução
     const EvolutionChart = () => {
-        if (sortedExams.length < 2) return (
+        // Filtar simulados com base no timeRange selecionado
+        const filteredExams = sortedExams.filter(exam => {
+            if (timeRange === 'all') return true;
+            
+            const examDate = typeof exam.date === 'string' ? new Date(exam.date) : (exam.date as Date);
+            const now = new Date();
+            const diffTime = Math.abs(now.getTime() - examDate.getTime());
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (timeRange === 'week') return diffDays <= 7;
+            if (timeRange === 'month') return diffDays <= 30;
+            if (timeRange === 'year') return diffDays <= 365;
+            
+            return true;
+        });
+
+        if (filteredExams.length < 2) return (
              <div className="h-48 flex flex-col items-center justify-center text-slate-400 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+                <div className="flex justify-between w-full px-4 pt-1 pb-4 border-b border-slate-200 dark:border-slate-700 mb-4 items-center">
+                    <h3 className="text-sm font-bold text-slate-500 flex items-center gap-2">
+                        <span className="material-symbols-outlined text-primary">trending_up</span>
+                        Evolução de Desempenho (%)
+                    </h3>
+                    <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 scale-90 origin-right">
+                        <button onClick={() => setTimeRange('week')} className={`px-2 py-1 text-xs rounded-md font-bold transition-all ${timeRange === 'week' ? 'bg-white dark:bg-slate-700 shadow-sm text-primary' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>7D</button>
+                        <button onClick={() => setTimeRange('month')} className={`px-2 py-1 text-xs rounded-md font-bold transition-all ${timeRange === 'month' ? 'bg-white dark:bg-slate-700 shadow-sm text-primary' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>1M</button>
+                        <button onClick={() => setTimeRange('year')} className={`px-2 py-1 text-xs rounded-md font-bold transition-all ${timeRange === 'year' ? 'bg-white dark:bg-slate-700 shadow-sm text-primary' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>1A</button>
+                        <button onClick={() => setTimeRange('all')} className={`px-2 py-1 text-xs rounded-md font-bold transition-all ${timeRange === 'all' ? 'bg-white dark:bg-slate-700 shadow-sm text-primary' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Todos</button>
+                    </div>
+                </div>
                 <span className="material-symbols-outlined text-4xl mb-2 opacity-50">show_chart</span>
-                <p className="text-sm">Registre pelo menos 2 simulados para ver sua evolução.</p>
+                <p className="text-sm">Registre pelo menos 2 simulados neste período.</p>
             </div>
         );
 
         // O gráfico evolui cronologicamente da esquerda pra direita, 
         // mas o array foi revertido na extração sortedExams. Ele é do Mais novo -> Mais velho
         // Então reverter ele torna do Mais Velho -> Mais Novo.
-        const chartData = [...sortedExams].reverse().map(e => {
+        const chartData = [...filteredExams].reverse().map(e => {
             const dateObj = typeof e.date === 'string' ? new Date(e.date) : (e.date as Date);
             return {
                 date: (dateObj as Date).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit'}),
@@ -94,48 +123,75 @@ export const SimulatedExams: React.FC<SimulatedExamsProps> = ({ exams, onAddExam
             };
         });
 
-        const height = 200; 
-        const width = 600; 
+        const height = 240; 
         const paddingX = 40; 
-        const paddingY = 30;
+        const paddingY = 40;
         const maxY = 100; 
-        const xStep = (width - paddingX * 2) / (chartData.length - 1);
         
+        // Responsividade para não amontoar os pontos no SVG
+        // Mínimo de 600px de largura total, ou aproximadamente 60px por ponto de dados para mantê-los legíveis
+        const minPointSpacing = 60;
+        const dynamicWidth = Math.max(600, (chartData.length - 1) * minPointSpacing + (paddingX * 2));
+        
+        const xStep = (dynamicWidth - paddingX * 2) / (chartData.length - 1);
         const getY = (val: number) => height - paddingY - ((val / maxY) * (height - paddingY * 2));
-        
         const points = chartData.map((d, i) => `${paddingX + (i * xStep)},${getY(d.pct)}`).join(' ');
 
         return (
-            <div className="w-full h-56 relative bg-white dark:bg-[#1a1a2e] rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm overflow-hidden">
-                <h3 className="text-sm font-bold text-slate-500 mb-4 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary">trending_up</span>
-                    Evolução de Desempenho (%)
-                </h3>
-                <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible" preserveAspectRatio="none">
-                    {/* Linhas de Grade */}
-                    {[20, 40, 60, 80, 100].map(val => (
-                        <g key={val}>
-                            <line x1={paddingX} y1={getY(val)} x2={width - paddingX} y2={getY(val)} stroke="currentColor" className="text-slate-100 dark:text-slate-700" strokeDasharray="4,4" />
-                            <text x={paddingX - 10} y={getY(val) + 4} className="text-[10px] fill-slate-400 text-right">{val}%</text>
+            <div className="w-full relative bg-white dark:bg-[#1a1a2e] rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm overflow-hidden flex flex-col">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+                    <h3 className="text-sm font-bold text-slate-500 flex items-center gap-2 shrink-0">
+                        <span className="material-symbols-outlined text-primary">trending_up</span>
+                        Evolução de Desempenho (%)
+                    </h3>
+                    <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 self-end sm:self-auto overflow-x-auto w-full sm:w-auto custom-scrollbar-thin">
+                        <button onClick={() => setTimeRange('week')} className={`px-3 py-1.5 text-xs rounded-md font-bold transition-all shrink-0 ${timeRange === 'week' ? 'bg-white dark:bg-slate-700 shadow-sm text-primary' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>7 Dias</button>
+                        <button onClick={() => setTimeRange('month')} className={`px-3 py-1.5 text-xs rounded-md font-bold transition-all shrink-0 ${timeRange === 'month' ? 'bg-white dark:bg-slate-700 shadow-sm text-primary' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>30 Dias</button>
+                        <button onClick={() => setTimeRange('year')} className={`px-3 py-1.5 text-xs rounded-md font-bold transition-all shrink-0 ${timeRange === 'year' ? 'bg-white dark:bg-slate-700 shadow-sm text-primary' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>1 Ano</button>
+                        <button onClick={() => setTimeRange('all')} className={`px-3 py-1.5 text-xs rounded-md font-bold transition-all shrink-0 ${timeRange === 'all' ? 'bg-white dark:bg-slate-700 shadow-sm text-primary' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Todos</button>
+                    </div>
+                </div>
+                
+                <div className="w-full overflow-x-auto custom-scrollbar-thin pb-2" style={{ height: `${height}px` }}>
+                    <svg viewBox={`0 0 ${dynamicWidth} ${height}`} className="h-full overflow-visible min-w-full" preserveAspectRatio="none" style={{ width: `${dynamicWidth}px` }}>
+                    {/* Eixo Y */}
+                    <line x1={paddingX} y1={paddingY} x2={paddingX} y2={height - paddingY} stroke="currentColor" className="text-slate-200 dark:text-slate-600" strokeWidth="2" />
+                    
+                    {/* Linhas de Grade e Rótulos Eixo Y */}
+                    {[0, 20, 40, 60, 80, 100].map(val => (
+                        <g key={`grid-${val}`}>
+                            <line x1={paddingX} y1={getY(val)} x2={dynamicWidth - paddingX} y2={getY(val)} stroke="currentColor" className="text-slate-100 dark:text-slate-700" strokeDasharray="4,4" />
+                            <text x={paddingX - 10} y={getY(val) + 4} className="text-[10px] fill-slate-400 font-medium" textAnchor="end">{val}%</text>
                         </g>
                     ))}
                     
+                    {/* Eixo X - Linha Base */}
+                    <line x1={paddingX} y1={height - paddingY} x2={dynamicWidth - paddingX} y2={height - paddingY} stroke="currentColor" className="text-slate-300 dark:text-slate-600" strokeWidth="2" />
+
                     {/* Linha do Gráfico */}
-                    <polyline points={points} fill="none" stroke="currentColor" className="text-primary" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                    <polyline points={points} fill="none" stroke="currentColor" className="text-primary" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
                     
                     {/* Pontos */}
                     {chartData.map((d, i) => (
-                        <g key={i}>
-                            <circle cx={paddingX + (i * xStep)} cy={getY(d.pct)} r="5" className="fill-white dark:fill-[#1a1a2e] stroke-primary stroke-2" />
-                            <text x={paddingX + (i * xStep)} y={getY(d.pct) - 15} className="text-[10px] fill-slate-600 dark:fill-slate-300 font-bold" textAnchor="middle">{d.pct}%</text>
+                        <g key={`point-${i}`}>
+                            {/* Ponto Visual */}
+                            <circle cx={paddingX + (i * xStep)} cy={getY(d.pct)} r="5" className="fill-white dark:fill-[#1a1a2e] stroke-primary stroke-[3px]" />
+                            {/* Texto da Porcentagem */}
+                            <text x={paddingX + (i * xStep)} y={getY(d.pct) - 12} className="text-[11px] fill-slate-700 dark:fill-slate-200 font-bold" textAnchor="middle">{d.pct}%</text>
                         </g>
                     ))}
                     
-                    {/* Eixo X - Datas por baixo de tudo */}
+                    {/* Eixo X - Datas */}
                     {chartData.map((d, i) => (
-                        <text key={`date-${i}`} x={paddingX + (i * xStep)} y={height - 10} className="text-[10px] fill-slate-500 font-medium" textAnchor="middle">{d.date}</text>
+                        <g key={`axis-${i}`}>
+                            {/* Traço de demarcação do Eixo X */}
+                            <line x1={paddingX + (i * xStep)} y1={height - paddingY} x2={paddingX + (i * xStep)} y2={height - paddingY + 6} stroke="currentColor" className="text-slate-300 dark:text-slate-600" strokeWidth="2" />
+                            {/* Rótulo de Data do Eixo X */}
+                            <text x={paddingX + (i * xStep)} y={height - paddingY + 20} className="text-[10px] fill-slate-500 font-bold" textAnchor="middle">{d.date}</text>
+                        </g>
                     ))}
                 </svg>
+                </div>
             </div>
         );
     };
