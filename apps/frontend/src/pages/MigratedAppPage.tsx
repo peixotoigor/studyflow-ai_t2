@@ -946,26 +946,44 @@ const MigratedAppPage = () => {
             onAddSubject={async (name, weight, color) => {
               try {
                 let targetPlanId = currentPlanId || plans[0]?.id;
-
-                // Se não há plano, cria um automaticamente para permitir adicionar disciplinas
                 if (!targetPlanId) {
                   const newPlan = await createPlan.mutateAsync({ name: 'Plano Principal', color: 'blue' });
                   targetPlanId = newPlan.id;
                   setCurrentPlanId(newPlan.id);
                 }
-
                 await createSubject.mutateAsync({
-                  planId: targetPlanId,
-                  name,
-                  weight,
-                  color,
+                  planId: targetPlanId, name,
+                  weight: weight ?? undefined,
+                  color: color ?? undefined,
                   active: true
                 });
                 await pushSync();
-              } catch (error) {
+              } catch (error: any) {
                 console.error('Erro ao criar disciplina:', error);
-                alert('Erro ao criar disciplina. Tente novamente.');
+                const msg = error?.response?.data?.message || error?.message || 'Erro desconhecido';
+                alert(`Erro ao criar disciplina: ${msg}`);
               }
+            }}
+            onBulkAddSubjects={async (subjects) => {
+              let targetPlanId = currentPlanId || plans[0]?.id;
+              if (!targetPlanId) {
+                const newPlan = await createPlan.mutateAsync({ name: 'Plano Principal', color: 'blue' });
+                targetPlanId = newPlan.id;
+                setCurrentPlanId(newPlan.id);
+              }
+              const results = await Promise.allSettled(
+                subjects.map(s =>
+                  createSubject.mutateAsync({
+                    planId: targetPlanId,
+                    name: s.name,
+                    weight: s.weight ?? undefined,
+                    color: s.color ?? undefined,
+                    active: true
+                  })
+                )
+              );
+              await pushSync();
+              return results.filter(r => r.status === 'fulfilled').length;
             }}
             onToggleStatus={async (id) => {
               const subject = currentPlanSubjects.find(s => s.id === id);

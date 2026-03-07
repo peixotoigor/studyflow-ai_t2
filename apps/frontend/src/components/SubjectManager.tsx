@@ -9,7 +9,8 @@ interface SubjectManagerProps {
     onImportFromPlan?: (sourcePlanId: string, subjectIdsToCopy: string[]) => void;
     onDeleteSubject?: (id: string) => void;
     onBulkDeleteSubjects?: (ids: string[]) => void;
-    onAddSubject?: (name: string, weight?: number, color?: string) => void;
+    onAddSubject?: (name: string, weight?: number, color?: string) => void | Promise<void>;
+    onBulkAddSubjects?: (subjects: Array<{ name: string; weight?: number; color?: string }>) => Promise<number>;
     onToggleStatus?: (id: string) => void;
     onAddTopic?: (subjectId: string, name: string) => void;
     onRemoveTopic?: (subjectId: string, topicId: string) => void;
@@ -35,6 +36,7 @@ export const SubjectManager: React.FC<SubjectManagerProps> = ({
     onImportFromPlan,
     onDeleteSubject,
     onBulkDeleteSubjects,
+    onBulkAddSubjects,
     onAddSubject,
     onToggleStatus,
     onAddTopic,
@@ -278,19 +280,28 @@ export const SubjectManager: React.FC<SubjectManagerProps> = ({
                 return;
             }
 
-            // Precisamos adicionar via onAddSubject, depois possivelmente adicionar os tópicos.
-            // Para evitar chamadas de rede lentas bloqueando a interface para muitas disciplinas, informamos o usuário.
-            alert("A importação foi iniciada. As disciplinas e tópicos começarão a aparecer. Aguarde um momento.");
+            const cleanSubjects = data.subjects.map((s: any) => ({
+                name: s.name,
+                weight: s.weight ?? undefined,
+                color: s.color ?? undefined
+            }));
 
-            for (const subj of data.subjects) {
-                // Apenas chama onAddSubject se existir. Obs: onAddSubject do MigratedAppPage não retorna ID diretamente,
-                // Uma melhoria seria permitir enviar objetos aninhados, mas usaremos onAddSubject 
-                onAddSubject(subj.name, subj.weight, subj.color);
-                
-                // Nota: Tópicos não serão criados aqui porque onAddSubject atual não retorna a promise/ID de volta de forma síncrona 
-                // para chamarmos onAddTopic logo em seguida. Como isso é um "nice to have", 
-                // vamos alertar o user sobre criar tudo manualmente pelo frontend ou atualizar MigratedAppPage.
-                // Na arquitetura atual, onAddSubject apenas chama mutate.
+            if (onBulkAddSubjects) {
+                // Rota rápida: cria tudo em paralelo e sincroniza uma vez
+                const successCount = await onBulkAddSubjects(cleanSubjects);
+                alert(`Importação concluída: ${successCount} de ${data.subjects.length} disciplinas criadas.`);
+            } else {
+                // Fallback sequencial
+                let successCount = 0;
+                for (const subj of cleanSubjects) {
+                    try {
+                        await onAddSubject(subj.name, subj.weight, subj.color);
+                        successCount++;
+                    } catch (err) {
+                        console.error(`Erro ao importar "${subj.name}":`, err);
+                    }
+                }
+                alert(`Importação concluída: ${successCount} de ${data.subjects.length} disciplinas criadas.`);
             }
             
         } catch (error: any) {
