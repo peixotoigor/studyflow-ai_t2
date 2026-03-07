@@ -19,6 +19,7 @@ export interface StudyPlan {
   createdAt: string;
   updatedAt: string;
   subjects?: Subject[];
+  editalFiles?: any[];
 }
 
 export interface Subject {

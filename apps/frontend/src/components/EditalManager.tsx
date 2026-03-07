@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { EditalFile } from '../types';
+import { supabase } from '../lib/supabase';
 
 interface EditalManagerProps {
   files: EditalFile[];
@@ -15,6 +16,7 @@ export const EditalManager: React.FC<EditalManagerProps> = ({ files, onUpload, o
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
 
   // Clear selection if the file disappears (plan switch or delete)
   React.useEffect(() => {
@@ -24,27 +26,60 @@ export const EditalManager: React.FC<EditalManagerProps> = ({ files, onUpload, o
     }
   }, [files, selectedId]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
+      
+      // Enforce 5MB limit as requested
+      const MAX_SIZE = 5 * 1024 * 1024;
       if (file.type !== 'application/pdf') { alert('Envie apenas PDFs.'); return; }
-      if (file.size > 15 * 1024 * 1024) { alert('Arquivo muito grande (15MB).'); return; }
-      const id = `edital-${Date.now()}`;
+      if (file.size > MAX_SIZE) { alert('Arquivo muito grande. O limite agora é de 5MB.'); return; }
       
-      // Use URL.createObjectURL instead of Base64 FileReader to avoid huge RAM spikes
-      const objectUrl = URL.createObjectURL(file);
-      
-      onUpload({ 
-        id, 
-        planId: '', 
-        fileName: file.name, 
-        dataUrl: objectUrl, 
-        sizeBytes: file.size, 
-        mimeType: file.type, 
-        uploadedAt: new Date() 
-      });
-      
-      e.target.value = '';
+      if (!supabase) {
+        alert('Configuração do Supabase ausente. O arquivo será mantido apenas localmente (Blob).');
+        const id = `edital-${Date.now()}`;
+        const objectUrl = URL.createObjectURL(file);
+        onUpload({ id, planId: '', fileName: file.name, dataUrl: objectUrl, sizeBytes: file.size, mimeType: file.type, uploadedAt: new Date() });
+        e.target.value = '';
+        return;
+      }
+
+      setIsUploading(true);
+      try {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `editais/${fileName}`;
+
+        // 1. Upload to Supabase Storage
+        const { error: uploadError } = await supabase.storage
+          .from('editais')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        // 2. Get Public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('editais')
+          .getPublicUrl(filePath);
+
+        const id = `edital-${Date.now()}`;
+        onUpload({ 
+          id, 
+          planId: '', 
+          fileName: file.name, 
+          dataUrl: publicUrl, // Now matches a permanent URL
+          sizeBytes: file.size, 
+          mimeType: file.type, 
+          uploadedAt: new Date() 
+        });
+        
+      } catch (err: any) {
+        console.error('Erro no upload para Supabase:', err);
+        alert('Falha ao salvar no Supabase. Verifique se o bucket "editais" existe e tem permissão pública.');
+      } finally {
+        setIsUploading(false);
+        e.target.value = '';
+      }
   };
 
   const startRename = (f: EditalFile) => {
@@ -69,8 +104,21 @@ export const EditalManager: React.FC<EditalManagerProps> = ({ files, onUpload, o
           <p className="text-sm text-slate-500 dark:text-slate-400">Envie, gerencie e visualize os PDFs do edital.</p>
         </div>
         <div className="flex items-center gap-2">
-          <input ref={fileInputRef} type="file" accept="application/pdf" className="hidden" onChange={handleFileChange} />
-          <button onClick={() => fileInputRef.current?.click()} className="px-3 py-2 rounded-lg bg-primary text-white text-sm font-bold hover:bg-blue-600 transition-colors">Enviar PDF</button>
+          <input ref={fileInputRef} type="file" accept="application/pdf" className="hidden" onChange={handleFileChange} disabled={isUploading} />
+          <button 
+            onClick={() => fileInputRef.current?.click()} 
+            disabled={isUploading}
+            className={`px-3 py-2 rounded-lg ${isUploading ? 'bg-slate-300 cursor-not-allowed' : 'bg-primary hover:bg-blue-600'} text-white text-sm font-bold transition-colors flex items-center gap-2`}
+          >
+            {isUploading ? (
+              <>
+                <span className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                Enviando...
+              </>
+            ) : (
+              'Enviar PDF (Max 5MB)'
+            )}
+          </button>
         </div>
       </div>
 

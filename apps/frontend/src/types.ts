@@ -69,8 +69,9 @@ export type Subject = Omit<DomainSubject, 'topics' | 'logs' | 'color' | 'weight'
   logs?: StudyLog[];
 };
 
-export type StudyPlan = Omit<DomainStudyPlan, 'subjects'> & {
+export type StudyPlan = Omit<DomainStudyPlan, 'subjects' | 'editalFiles'> & {
   subjects?: Subject[];
+  editalFiles?: EditalFile[];
 };
 
 export type SessionType = 'THEORY' | 'REVIEW';

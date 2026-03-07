@@ -60,6 +60,7 @@ const MigratedAppPage = () => {
   const [editalFiles, setEditalFiles] = useState<EditalFile[]>([]);
   const [lastRemovedEdital, setLastRemovedEdital] = useState<EditalFile | null>(null);
 
+
   const editalFilesRef = useRef(editalFiles);
   const lastRemovedRef = useRef(lastRemovedEdital);
 
@@ -483,6 +484,15 @@ const MigratedAppPage = () => {
 
   // Derived data
   const currentPlan = plans.find(p => p.id === currentPlanId);
+
+  // Sync state with backend plans
+  useEffect(() => {
+    if (currentPlan?.editalFiles) {
+      setEditalFiles(currentPlan.editalFiles);
+    } else {
+      setEditalFiles([]);
+    }
+  }, [currentPlan?.id]);
   const currentPlanSubjects = safeSummaryData.plans.find(p => p.id === currentPlanId)?.subjects || [];
   const currentPlanErrorLogs = safeSummaryData.errorLogs.filter(log => {
     const subject = currentPlanSubjects.find(s => s.id === log.subjectId);
@@ -689,43 +699,91 @@ const MigratedAppPage = () => {
     }
   };
 
-  const handleUploadEdital = (file: Omit<EditalFile, 'id' | 'uploadedAt'> & { id?: string; uploadedAt?: Date }) => {
+  const handleUploadEdital = async (file: Omit<EditalFile, 'id' | 'uploadedAt'> & { id?: string; uploadedAt?: Date }) => {
     const newFile: EditalFile = {
       ...file,
       id: file.id || `edital-${Date.now()}`,
       planId: currentPlanId || plans[0]?.id || '',
       uploadedAt: file.uploadedAt || new Date(),
     };
-    if (lastRemovedEdital && lastRemovedEdital.dataUrl.startsWith('blob:')) {
-      URL.revokeObjectURL(lastRemovedEdital.dataUrl);
-    }
-    setEditalFiles(prev => [...prev, newFile]);
+    
+    const updatedList = [...editalFiles, newFile];
+    setEditalFiles(updatedList);
     setLastRemovedEdital(null);
+
+    // Persist to backend
+    if (newFile.planId) {
+      try {
+        await updatePlan.mutateAsync({
+          id: newFile.planId,
+          editalFiles: updatedList
+        });
+      } catch (err) {
+        console.error('Erro ao salvar lista de editais no backend:', err);
+      }
+    }
   };
 
-  const handleRenameEdital = (id: string, name: string) => {
-    setEditalFiles(prev => prev.map(f => f.id === id ? { ...f, fileName: name } : f));
+  const handleRenameEdital = async (id: string, name: string) => {
+    const updatedList = editalFiles.map(f => f.id === id ? { ...f, fileName: name } : f);
+    setEditalFiles(updatedList);
+
+    if (currentPlan?.id) {
+       try {
+        await updatePlan.mutateAsync({
+          id: currentPlan.id,
+          editalFiles: updatedList
+        });
+      } catch (err) {
+        console.error('Erro ao renomear edital no backend:', err);
+      }
+    }
   };
 
-  const handleDeleteEdital = (id: string) => {
+  const handleDeleteEdital = async (id: string) => {
     const fileToRemove = editalFiles.find(f => f.id === id);
     if (fileToRemove) {
       if (lastRemovedEdital && lastRemovedEdital.id !== id && lastRemovedEdital.dataUrl.startsWith('blob:')) {
          URL.revokeObjectURL(lastRemovedEdital.dataUrl);
       }
       setLastRemovedEdital(fileToRemove);
-      setEditalFiles(prev => prev.filter(f => f.id !== id));
+      const updatedList = editalFiles.filter(f => f.id !== id);
+      setEditalFiles(updatedList);
+
+      if (currentPlan?.id) {
+        try {
+          await updatePlan.mutateAsync({
+            id: currentPlan.id,
+            editalFiles: updatedList
+          });
+        } catch (err) {
+          console.error('Erro ao deletar edital no backend:', err);
+        }
+      }
     }
   };
 
-  const handleUndoDeleteEdital = () => {
+  const handleUndoDeleteEdital = async () => {
     if (lastRemovedEdital) {
-      setEditalFiles(prev => [...prev, lastRemovedEdital]);
+      const updatedList = [...editalFiles, lastRemovedEdital];
+      setEditalFiles(updatedList);
+      
+      if (currentPlan?.id) {
+        try {
+          await updatePlan.mutateAsync({
+            id: currentPlan.id,
+            editalFiles: updatedList
+          });
+        } catch (err) {
+          console.error('Erro ao desfazer exclusão no backend:', err);
+        }
+      }
+      
       setLastRemovedEdital(null);
     }
   };
 
-  const currentPlanEditalFiles = editalFiles.filter(f => f.planId === currentPlanId || plans[0]?.id === f.planId);
+  const currentPlanEditalFiles = editalFiles;
 
   const handleSessionComplete = async (
     subjectId: string,

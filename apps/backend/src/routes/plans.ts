@@ -11,7 +11,8 @@ const router = Router();
 const createPlanSchema = z.object({
   name: z.string().min(2),
   description: z.string().optional(),
-  color: z.string().optional()
+  color: z.string().optional(),
+  editalFiles: z.any().optional()
 });
 
 router.get('/', async (req: AuthenticatedRequest, res) => {
@@ -29,7 +30,8 @@ router.post('/', async (req: AuthenticatedRequest, res) => {
     userId: req.userId as string,
     name,
     description: description ?? null,
-    color: color ?? null
+    color: color ?? null,
+    editalFiles: req.body.editalFiles ?? null
   });
   void syncToDriveIfConnected(req.userId as string).catch((err) => console.warn('[drive-sync] plan create', err));
   res.status(201).json({ plan });
@@ -46,7 +48,8 @@ router.put('/:planId', async (req: AuthenticatedRequest, res) => {
   await plan.update({
     name: name ?? plan.name,
     description: description ?? plan.description,
-    color: color ?? plan.color
+    color: color ?? plan.color,
+    editalFiles: req.body.editalFiles ?? plan.editalFiles
   });
   void syncToDriveIfConnected(req.userId as string).catch((err) => console.warn('[drive-sync] plan update', err));
   res.json({ plan });

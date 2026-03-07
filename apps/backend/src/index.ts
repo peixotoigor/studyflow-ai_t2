@@ -53,6 +53,20 @@ const ensureUserSettingsSchema = async () => {
   } catch (err) {
     console.warn('[migrate] Não foi possível inspecionar/adicionar avatar_url em user_settings:', err);
   }
+
+  // Ensure edital_files in study_plans
+  try {
+    const tablePlans = await qi.describeTable('study_plans');
+    if (!tablePlans.edital_files) {
+      await qi.addColumn('study_plans', 'edital_files', {
+        type: DataTypes.JSON,
+        allowNull: true
+      });
+      console.log('[migrate] Adicionada coluna edital_files em study_plans');
+    }
+  } catch (err) {
+    console.warn('[migrate] Não foi possível inspecionar/adicionar edital_files em study_plans:', err);
+  }
 };
 
 const start = async () => {

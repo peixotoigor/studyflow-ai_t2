@@ -34,7 +34,7 @@ export const useCreatePlan = () => {
 export const useUpdatePlan = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...data }: { id: string; name?: string; description?: string; color?: string }) => {
+    mutationFn: async ({ id, ...data }: { id: string; name?: string; description?: string; color?: string; editalFiles?: any[] }) => {
       const response = await api.put<{ plan: StudyPlan }>(`/plans/${id}`, data);
       return response.data.plan;
     },

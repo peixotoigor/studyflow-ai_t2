@@ -11,6 +11,7 @@ export class StudyPlan extends Model<InferAttributes<StudyPlan>, InferCreationAt
   declare name: string;
   declare description: string | null;
   declare color: string | null;
+  declare editalFiles: CreationOptional<any | null>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
   declare user?: NonAttribute<User>;
@@ -40,6 +41,10 @@ StudyPlan.init(
     },
     color: {
       type: DataTypes.STRING,
+      allowNull: true
+    },
+    editalFiles: {
+      type: DataTypes.JSON,
       allowNull: true
     },
     createdAt: {
