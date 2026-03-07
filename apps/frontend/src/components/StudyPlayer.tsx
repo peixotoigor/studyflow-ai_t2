@@ -692,24 +692,6 @@ export const StudyPlayer: React.FC<StudyPlayerProps> = ({
                 onSaveNote={onSaveNote}
             />
 
-            {/* Floating Action Button - Tutor IA (visível quando chat está fechado) */}
-            {!isChatOpen && (
-                <button
-                    onClick={() => setIsChatOpen(true)}
-                    className="fixed bottom-24 md:bottom-8 right-6 z-30 flex items-center gap-2 px-5 py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-full shadow-xl shadow-purple-500/30 hover:shadow-purple-500/50 transition-all active:scale-95 group"
-                    title="Abrir Tutor IA"
-                >
-                    <span className="relative">
-                        <span className="material-symbols-outlined text-xl">smart_toy</span>
-                        <span className="absolute -top-1 -right-1 flex size-2.5">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full size-2.5 bg-green-400"></span>
-                        </span>
-                    </span>
-                    <span className="font-bold text-sm hidden sm:inline">Tutor IA</span>
-                </button>
-            )}
-
             {/* Modal de Relatório da Sessão */}
             {isReportOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">

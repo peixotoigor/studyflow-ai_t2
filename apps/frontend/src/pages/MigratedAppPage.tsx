@@ -1300,7 +1300,7 @@ const MigratedAppPage = () => {
         />
 
         <main className="flex-1 flex flex-col h-full overflow-hidden relative transition-colors duration-200">
-          <header className="h-16 flex items-center justify-between px-6 border-b border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark flex-shrink-0 transition-colors duration-200 z-[60]">
+          <header className="h-16 flex items-center justify-between px-6 border-b border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark flex-shrink-0 transition-colors duration-200 relative z-[60]">
             <div className="flex items-center gap-4">
               <div className="flex md:hidden items-center gap-3">
                 <div className="bg-primary/10 p-2 rounded-lg">
@@ -1352,7 +1352,7 @@ const MigratedAppPage = () => {
             </div>
           </header>
 
-          <div className="flex-1 overflow-hidden relative flex flex-col pb-16 md:pb-0">
+          <div className="flex-1 overflow-hidden relative isolate flex flex-col pb-16 md:pb-0">
             {renderScreen()}
           </div>
 
