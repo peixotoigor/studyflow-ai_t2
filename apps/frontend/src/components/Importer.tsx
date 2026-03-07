@@ -96,6 +96,7 @@ export const Importer: React.FC<ImporterProps> = ({ apiKey, model = 'gpt-4o-mini
                 if (loadingTask) await loadingTask.destroy();
             } catch(e) { /* ignore */ }
 
+
             // Verificação de PDF Escaneado (Imagem)
             if (fullText.trim().length < 50 && pdf.numPages > 0) {
                  throw new Error("O texto extraído é muito curto. O PDF parece ser uma imagem escaneada (sem OCR). Este importador requer PDFs com texto selecionável.");
