@@ -1317,7 +1317,20 @@ const MigratedAppPage = () => {
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setIsProfileOpen(true)}
+                className="flex items-center justify-center size-8 rounded-full ring-2 ring-primary/20 overflow-hidden hover:ring-primary/40 transition-all"
+                title="Perfil e Configurações"
+              >
+                {userProfile.avatarUrl ? (
+                  <img src={userProfile.avatarUrl} alt={userProfile.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
+                    {userProfile.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+                  </div>
+                )}
+              </button>
               <button
                   onClick={toggleTheme}
                   className="flex items-center justify-center p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-text-secondary-light dark:text-text-secondary-dark"
