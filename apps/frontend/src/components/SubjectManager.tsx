@@ -58,8 +58,10 @@ export const SubjectManager: React.FC<SubjectManagerProps> = ({
 
     const [activeTab, setActiveTab] = useState<'TOPICS' | 'HISTORY'>('TOPICS');
     const [viewMode, setViewMode] = useState<'ACTIVE' | 'ARCHIVED'>('ACTIVE'); // Novo estado para controlar a visualização
+    const [displayFormat, setDisplayFormat] = useState<'GRID' | 'LIST'>('GRID'); // Nova opção (Grid/Lista)
     const [newTopicInput, setNewTopicInput] = useState<string>('');
     const [searchTerm, setSearchTerm] = useState('');
+    const fileInputRef = useRef<HTMLInputElement>(null);
     
     // States for New Subject Modal
     const [isCreatingSubject, setIsCreatingSubject] = useState(false);
@@ -235,6 +237,69 @@ export const SubjectManager: React.FC<SubjectManagerProps> = ({
         }
     };
 
+    // --- Export / Import Local Subjects ---
+    const handleExportSubjects = () => {
+        const data = {
+            version: '1.0',
+            type: 'studyflow-subjects',
+            exportedAt: new Date().toISOString(),
+            subjects: displayedSubjects.map(s => ({
+                name: s.name,
+                active: s.active,
+                color: s.color,
+                weight: s.weight,
+                topics: (s.topics || []).map(t => ({ name: t.name }))
+            }))
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `studyflow_disciplinas_${viewMode.toLowerCase()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    const handleImportFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !onAddSubject) return;
+
+        try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+
+            if (data.type !== 'studyflow-subjects' || !Array.isArray(data.subjects)) {
+                throw new Error("Formato de arquivo inválido. Por favor, importe um arquivo .json gerado pelo StudyFlow.");
+            }
+
+            if (!window.confirm(`Isso irá adicionar ${data.subjects.length} novas disciplinas ao plano atual. Deseja continuar?`)) {
+                return;
+            }
+
+            // Precisamos adicionar via onAddSubject, depois possivelmente adicionar os tópicos.
+            // Para evitar chamadas de rede lentas bloqueando a interface para muitas disciplinas, informamos o usuário.
+            alert("A importação foi iniciada. As disciplinas e tópicos começarão a aparecer. Aguarde um momento.");
+
+            for (const subj of data.subjects) {
+                // Apenas chama onAddSubject se existir. Obs: onAddSubject do MigratedAppPage não retorna ID diretamente,
+                // Uma melhoria seria permitir enviar objetos aninhados, mas usaremos onAddSubject 
+                onAddSubject(subj.name, subj.weight, subj.color);
+                
+                // Nota: Tópicos não serão criados aqui porque onAddSubject atual não retorna a promise/ID de volta de forma síncrona 
+                // para chamarmos onAddTopic logo em seguida. Como isso é um "nice to have", 
+                // vamos alertar o user sobre criar tudo manualmente pelo frontend ou atualizar MigratedAppPage.
+                // Na arquitetura atual, onAddSubject apenas chama mutate.
+            }
+            
+        } catch (error: any) {
+            alert(error.message || "Erro ao ler arquivo.");
+        } finally {
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
     // --- Topic Editing Handlers ---
     const startEditingTopic = (topic: Topic) => { setEditingTopicId(topic.id); setEditingTopicName(topic.name); };
     const cancelEditingTopic = () => { setEditingTopicId(null); setEditingTopicName(''); };
@@ -339,7 +404,7 @@ export const SubjectManager: React.FC<SubjectManagerProps> = ({
         setEditingSubjectData(subject);
         setEditName(subject.name);
         setEditColor(subject.color || 'blue');
-        if (subject.weight !== undefined) { setEditHasWeight(true); setEditWeight(subject.weight); } 
+        if (subject.weight !== undefined && subject.weight !== null) { setEditHasWeight(true); setEditWeight(subject.weight); } 
         else { setEditHasWeight(false); setEditWeight(1); }
     };
 
@@ -363,7 +428,7 @@ export const SubjectManager: React.FC<SubjectManagerProps> = ({
                                         <span className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 font-bold text-slate-500">Peso {subject.weight}</span>
                                     )}
                                 </h3>
-                                <p className="text-sm text-text-secondary-light dark:text-text-secondary-dark">{subject.topics.length} tópicos cadastrados</p>
+                                <p className="text-sm text-text-secondary-light dark:text-text-secondary-dark">{(subject.topics || []).length} tópicos cadastrados</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -383,7 +448,7 @@ export const SubjectManager: React.FC<SubjectManagerProps> = ({
                     {activeTab === 'TOPICS' && (
                         <div className="max-w-3xl mx-auto">
                             <div className="flex flex-col gap-2">
-                                {subject.topics.map((topic, idx) => (
+                                {(subject.topics || []).map((topic, idx) => (
                                     <div key={topic.id} draggable={editingTopicId === null} onDragStart={() => handleDragStart(idx)} onDragOver={handleDragOver} onDrop={() => handleDrop(subject.id, idx)} className={`group flex items-center gap-3 p-3 rounded-lg border bg-white dark:bg-card-dark transition-all ${draggedTopicIndex === idx ? 'opacity-50 border-primary border-dashed' : 'border-transparent hover:border-slate-200 dark:hover:border-slate-700 shadow-sm'} ${editingTopicId === topic.id ? 'bg-primary/5' : 'cursor-move'}`}>
                                             <div className="text-gray-300 dark:text-gray-600 p-1 cursor-grab active:cursor-grabbing"><span className="material-symbols-outlined text-[18px]">drag_indicator</span></div>
                                             {editingTopicId !== topic.id && (
@@ -450,6 +515,12 @@ export const SubjectManager: React.FC<SubjectManagerProps> = ({
                             </div>
                             
                             <div className="flex flex-wrap gap-2 items-center">
+                                {/* Toggle Grid/List */}
+                                <div className="flex bg-gray-200 dark:bg-gray-800 p-1 rounded-lg">
+                                    <button onClick={() => setDisplayFormat('GRID')} className={`p-1.5 rounded-md transition-all ${displayFormat === 'GRID' ? 'bg-white dark:bg-gray-700 shadow-sm text-primary' : 'text-gray-500 hover:text-gray-700'}`} title="Grade"><span className="material-symbols-outlined text-[18px]">grid_view</span></button>
+                                    <button onClick={() => setDisplayFormat('LIST')} className={`p-1.5 rounded-md transition-all ${displayFormat === 'LIST' ? 'bg-white dark:bg-gray-700 shadow-sm text-primary' : 'text-gray-500 hover:text-gray-700'}`} title="Lista"><span className="material-symbols-outlined text-[18px]">list</span></button>
+                                </div>
+
                                 {/* Toggle Ativas/Arquivadas */}
                                 <div className="flex bg-gray-200 dark:bg-gray-800 p-1 rounded-lg">
                                     <button 
@@ -466,18 +537,29 @@ export const SubjectManager: React.FC<SubjectManagerProps> = ({
                                     </button>
                                 </div>
 
-                                <div className="h-8 w-px bg-gray-300 dark:bg-gray-700 mx-2 hidden md:block"></div>
+                                <div className="h-8 w-px bg-gray-300 dark:bg-gray-700 mx-1 hidden lg:block"></div>
 
-                                <button onClick={selectAll} className="text-xs font-bold text-primary px-3 hover:bg-primary/5 rounded h-10">
-                                    {selectedSubjectIds.size === displayedSubjects.length && displayedSubjects.length > 0 ? 'Desmarcar' : 'Selecionar Tudo'}
+                                <button onClick={selectAll} className="text-xs font-bold text-primary px-3 hover:bg-primary/5 rounded h-10 hidden sm:block">
+                                    {selectedSubjectIds.size === displayedSubjects.length && displayedSubjects.length > 0 ? 'Desmarcar' : 'Sel. Tudo'}
                                 </button>
                                 
+                                <div className="h-8 w-px bg-gray-300 dark:bg-gray-700 mx-1 hidden lg:block"></div>
+
+                                <button onClick={handleExportSubjects} className="flex items-center gap-1 h-10 px-3 bg-white dark:bg-card-dark border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-bold rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-sm" title="Baixar suas disciplinas">
+                                    <span className="material-symbols-outlined text-[18px]">download</span><span className="hidden xl:inline">Exportar</span>
+                                </button>
+
+                                <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1 h-10 px-3 bg-white dark:bg-card-dark border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-bold rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-sm" title="Carregar arquivo JSON de disciplinas">
+                                    <span className="material-symbols-outlined text-[18px]">upload_file</span><span className="hidden xl:inline">Carregar</span>
+                                    <input type="file" ref={fileInputRef} onChange={handleImportFileChange} accept=".json" className="hidden" />
+                                </button>
+
                                 {plans.length > 1 && (
-                                    <button onClick={() => setIsImporting(true)} className="flex items-center gap-2 h-10 px-4 bg-white dark:bg-card-dark border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-bold rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
-                                        <span className="material-symbols-outlined text-[18px]">input</span><span className="hidden sm:inline">Importar</span>
+                                    <button onClick={() => setIsImporting(true)} className="flex items-center gap-1 h-10 px-3 bg-white dark:bg-card-dark border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-bold rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-sm">
+                                        <span className="material-symbols-outlined text-[18px]">input</span><span className="hidden xl:inline">Clonar</span>
                                     </button>
                                 )}
-                                <button onClick={() => setIsCreatingSubject(true)} className="flex items-center gap-2 h-10 px-5 bg-primary text-white font-bold rounded-lg shadow-lg hover:bg-blue-700 transition-all"><span className="material-symbols-outlined">add</span> Nova</button>
+                                <button onClick={() => setIsCreatingSubject(true)} className="flex items-center gap-1 h-10 px-4 bg-primary text-white font-bold rounded-lg shadow-lg hover:bg-blue-700 transition-all text-sm"><span className="material-symbols-outlined text-[18px]">add</span> <span className="hidden sm:inline">Nova</span></button>
                             </div>
                         </div>
 
@@ -486,46 +568,93 @@ export const SubjectManager: React.FC<SubjectManagerProps> = ({
                                 <h2 className="text-sm font-bold uppercase tracking-wider text-primary">
                                     {viewMode === 'ACTIVE' ? 'No Plano de Estudos' : 'Disciplinas Arquivadas (Inativas)'}
                                 </h2>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-                                    {displayedSubjects.map(subject => {
-                                        const subjectColorClass = subject.color ? `text-${subject.color}-600 dark:text-${subject.color}-400` : 'text-primary';
-                                        const subjectBgClass = subject.color ? `bg-${subject.color}-100 dark:bg-${subject.color}-900/30` : 'bg-primary/10';
-                                        const isSelected = selectedSubjectIds.has(subject.id);
-                                        const isArchived = !subject.active;
-                                        
-                                        return (
-                                            <div 
-                                                key={subject.id} 
-                                                onClick={() => toggleExpand(subject.id)} 
-                                                className={`group bg-card-light dark:bg-card-dark rounded-xl border p-4 hover:border-primary/50 hover:shadow-md transition-all cursor-pointer relative flex flex-col justify-between h-[140px] ${isSelected ? 'border-primary ring-1 ring-primary/30' : 'border-border-light dark:border-border-dark'} ${isArchived ? 'opacity-80 grayscale-[0.5] hover:grayscale-0' : ''}`}
-                                            >
-                                                <div className="absolute top-2 left-2 z-10" onClick={(e) => { e.stopPropagation(); toggleSelection(subject.id); }}>
-                                                    <div className={`size-5 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-primary border-primary' : 'bg-white/80 dark:bg-black/50 border-gray-300 dark:border-gray-600 hover:border-primary'}`}>
-                                                        {isSelected && <span className="material-symbols-outlined text-white text-[14px]">check</span>}
+                                {displayFormat === 'GRID' ? (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                                        {displayedSubjects.map(subject => {
+                                            const subjectColorClass = subject.color ? `text-${subject.color}-600 dark:text-${subject.color}-400` : 'text-primary';
+                                            const subjectBgClass = subject.color ? `bg-${subject.color}-100 dark:bg-${subject.color}-900/30` : 'bg-primary/10';
+                                            const isSelected = selectedSubjectIds.has(subject.id);
+                                            const isArchived = !subject.active;
+                                            
+                                            return (
+                                                <div 
+                                                    key={subject.id} 
+                                                    onClick={() => toggleExpand(subject.id)} 
+                                                    className={`group bg-card-light dark:bg-card-dark rounded-xl border p-4 hover:border-primary/50 hover:shadow-md transition-all cursor-pointer relative flex flex-col justify-between h-[140px] ${isSelected ? 'border-primary ring-1 ring-primary/30' : 'border-border-light dark:border-border-dark'} ${isArchived ? 'opacity-80 grayscale-[0.5] hover:grayscale-0' : ''}`}
+                                                >
+                                                    <div className="absolute top-2 left-2 z-10" onClick={(e) => { e.stopPropagation(); toggleSelection(subject.id); }}>
+                                                        <div className={`size-5 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-primary border-primary' : 'bg-white/80 dark:bg-black/50 border-gray-300 dark:border-gray-600 hover:border-primary'}`}>
+                                                            {isSelected && <span className="material-symbols-outlined text-white text-[14px]">check</span>}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex justify-between items-start pl-6">
+                                                        <div className={`size-10 rounded-lg flex items-center justify-center ${subjectBgClass} ${subjectColorClass}`}>
+                                                            <span className="material-symbols-outlined fill text-xl">{getSubjectIcon(subject.name)}</span>
+                                                        </div>
+                                                        {subject.weight !== undefined && (
+                                                            <span className="text-[10px] font-black uppercase bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded">Peso {subject.weight}</span>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="font-bold text-base text-text-primary-light dark:text-text-primary-dark line-clamp-2 leading-tight mb-1" title={subject.name}>{subject.name}</h3>
+                                                        <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{(subject.topics || []).length} Tópicos</p>
+                                                    </div>
+                                                    <div className="absolute top-2 right-2 flex gap-1">
+                                                        {!isArchived && (
+                                                            <button onClick={(e) => openAiModalForSubject(e, subject.id)} className="p-1 rounded bg-white/80 dark:bg-black/50 hover:bg-purple-100 dark:hover:bg-purple-900 text-slate-500 hover:text-purple-600 transition-colors shadow-sm opacity-0 group-hover:opacity-100" title="IA"><span className="material-symbols-outlined text-[16px]">auto_fix</span></button>
+                                                        )}
+                                                        <button onClick={(e) => openEditSubjectModal(e, subject)} className="p-1 rounded bg-white/80 dark:bg-black/50 hover:bg-blue-100 dark:hover:bg-blue-900 text-slate-500 hover:text-blue-600 transition-colors shadow-sm opacity-0 group-hover:opacity-100" title="Editar"><span className="material-symbols-outlined text-[16px]">edit</span></button>
                                                     </div>
                                                 </div>
-                                                <div className="flex justify-between items-start pl-6">
-                                                    <div className={`size-10 rounded-lg flex items-center justify-center ${subjectBgClass} ${subjectColorClass}`}>
-                                                        <span className="material-symbols-outlined fill text-xl">{getSubjectIcon(subject.name)}</span>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col gap-2">
+                                        {displayedSubjects.map(subject => {
+                                            const subjectColorClass = subject.color ? `text-${subject.color}-600 dark:text-${subject.color}-400` : 'text-primary';
+                                            const subjectBgClass = subject.color ? `bg-${subject.color}-100 dark:bg-${subject.color}-900/30` : 'bg-primary/10';
+                                            const isSelected = selectedSubjectIds.has(subject.id);
+                                            const isArchived = !subject.active;
+                                            
+                                            return (
+                                                <div 
+                                                    key={subject.id} 
+                                                    onClick={() => toggleExpand(subject.id)} 
+                                                    className={`group bg-card-light dark:bg-card-dark rounded-xl border p-3 hover:border-primary/50 hover:shadow-md transition-all cursor-pointer relative flex items-center justify-between gap-4 ${isSelected ? 'border-primary bg-primary/5' : 'border-border-light dark:border-border-dark'} ${isArchived ? 'opacity-80 grayscale-[0.5] hover:grayscale-0' : ''}`}
+                                                >
+                                                    <div className="flex items-center gap-4 flex-1 overflow-hidden">
+                                                        <div onClick={(e) => { e.stopPropagation(); toggleSelection(subject.id); }} className="pl-1">
+                                                            <div className={`size-5 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-primary border-primary' : 'bg-white/80 dark:bg-black/50 border-gray-300 dark:border-gray-600 hover:border-primary'}`}>
+                                                                {isSelected && <span className="material-symbols-outlined text-white text-[14px]">check</span>}
+                                                            </div>
+                                                        </div>
+                                                        <div className={`size-10 shrink-0 rounded-lg flex items-center justify-center ${subjectBgClass} ${subjectColorClass}`}>
+                                                            <span className="material-symbols-outlined fill text-xl">{getSubjectIcon(subject.name)}</span>
+                                                        </div>
+                                                        <div className="flex flex-col flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2">
+                                                                <h3 className="font-bold text-base text-text-primary-light dark:text-text-primary-dark truncate" title={subject.name}>{subject.name}</h3>
+                                                            </div>
+                                                            <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark truncate">{(subject.topics || []).length} tópicos cadastrados</p>
+                                                        </div>
                                                     </div>
-                                                    {subject.weight !== undefined && (
-                                                        <span className="text-[10px] font-black uppercase bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded">Peso {subject.weight}</span>
-                                                    )}
+                                                    <div className="flex items-center gap-3">
+                                                        {subject.weight !== undefined && (
+                                                            <span className="text-[10px] font-black uppercase bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded hidden sm:inline-block">Peso {subject.weight}</span>
+                                                        )}
+                                                        <div className="flex gap-1">
+                                                            {!isArchived && (
+                                                                <button onClick={(e) => openAiModalForSubject(e, subject.id)} className="p-1.5 rounded hover:bg-purple-100 dark:hover:bg-purple-900 text-slate-400 hover:text-purple-600 transition-colors" title="Processar com IA"><span className="material-symbols-outlined text-[18px]">auto_fix</span></button>
+                                                            )}
+                                                            <button onClick={(e) => openEditSubjectModal(e, subject)} className="p-1.5 rounded hover:bg-blue-100 dark:hover:bg-blue-900 text-slate-400 hover:text-blue-600 transition-colors" title="Editar propriedades"><span className="material-symbols-outlined text-[18px]">edit</span></button>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <h3 className="font-bold text-base text-text-primary-light dark:text-text-primary-dark line-clamp-2 leading-tight mb-1" title={subject.name}>{subject.name}</h3>
-                                                    <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{subject.topics.length} Tópicos</p>
-                                                </div>
-                                                <div className="absolute top-2 right-2 flex gap-1">
-                                                    {!isArchived && (
-                                                        <button onClick={(e) => openAiModalForSubject(e, subject.id)} className="p-1 rounded bg-white/80 dark:bg-black/50 hover:bg-purple-100 dark:hover:bg-purple-900 text-slate-500 hover:text-purple-600 transition-colors shadow-sm opacity-0 group-hover:opacity-100" title="IA"><span className="material-symbols-outlined text-[16px]">auto_fix</span></button>
-                                                    )}
-                                                    <button onClick={(e) => openEditSubjectModal(e, subject)} className="p-1 rounded bg-white/80 dark:bg-black/50 hover:bg-blue-100 dark:hover:bg-blue-900 text-slate-500 hover:text-blue-600 transition-colors shadow-sm opacity-0 group-hover:opacity-100" title="Editar"><span className="material-symbols-outlined text-[16px]">edit</span></button>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <div className="text-center py-20 text-gray-400">
