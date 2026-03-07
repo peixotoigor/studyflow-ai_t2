@@ -10,7 +10,7 @@ interface SubjectManagerProps {
     onDeleteSubject?: (id: string) => void;
     onBulkDeleteSubjects?: (ids: string[]) => void;
     onAddSubject?: (name: string, weight?: number, color?: string) => void | Promise<void>;
-    onBulkAddSubjects?: (subjects: Array<{ name: string; weight?: number; color?: string }>) => Promise<number>;
+    onBulkAddSubjects?: (subjects: Array<{ name: string; weight?: number; color?: string; topics?: string[] }>) => Promise<number>;
     onToggleStatus?: (id: string) => void;
     onAddTopic?: (subjectId: string, name: string) => void;
     onRemoveTopic?: (subjectId: string, topicId: string) => void;
@@ -283,7 +283,8 @@ export const SubjectManager: React.FC<SubjectManagerProps> = ({
             const cleanSubjects = data.subjects.map((s: any) => ({
                 name: s.name,
                 weight: s.weight ?? undefined,
-                color: s.color ?? undefined
+                color: s.color ?? undefined,
+                topics: Array.isArray(s.topics) ? s.topics.map((t: any) => (typeof t === 'string' ? t : t.name)).filter(Boolean) : []
             }));
 
             if (onBulkAddSubjects) {

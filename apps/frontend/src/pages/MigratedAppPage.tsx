@@ -971,19 +971,31 @@ const MigratedAppPage = () => {
                 targetPlanId = newPlan.id;
                 setCurrentPlanId(newPlan.id);
               }
-              const results = await Promise.allSettled(
-                subjects.map(s =>
-                  createSubject.mutateAsync({
+              let successCount = 0;
+              for (const s of subjects) {
+                try {
+                  const created = await createSubject.mutateAsync({
                     planId: targetPlanId,
                     name: s.name,
                     weight: s.weight ?? undefined,
                     color: s.color ?? undefined,
                     active: true
-                  })
-                )
-              );
+                  });
+                  // Criar tópicos em paralelo para esta disciplina
+                  if (s.topics && s.topics.length > 0) {
+                    await Promise.allSettled(
+                      s.topics.map(topicName =>
+                        createTopic.mutateAsync({ subjectId: created.id, name: topicName, completed: false })
+                      )
+                    );
+                  }
+                  successCount++;
+                } catch (err) {
+                  console.error(`Erro ao importar "${s.name}":`, err);
+                }
+              }
               await pushSync();
-              return results.filter(r => r.status === 'fulfilled').length;
+              return successCount;
             }}
             onToggleStatus={async (id) => {
               const subject = currentPlanSubjects.find(s => s.id === id);
