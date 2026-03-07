@@ -1203,6 +1203,7 @@ const MigratedAppPage = () => {
       case Screen.EDITAL_MANAGER:
         return (
           <EditalManager
+            userId={userProfile.id}
             files={currentPlanEditalFiles}
             onUpload={handleUploadEdital}
             onRename={handleRenameEdital}
