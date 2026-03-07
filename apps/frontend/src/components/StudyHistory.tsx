@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Subject, StudyLog, getSubjectIcon } from '../types';
+import { Subject, StudyLog, StudyModality, getSubjectIcon } from '../types';
 
 interface StudyHistoryProps {
     subjects: Subject[];
@@ -25,7 +25,27 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({ subjects, onUpdateLo
     const [newLogDuration, setNewLogDuration] = useState(30);
     const [newLogQuestions, setNewLogQuestions] = useState(0);
     const [newLogCorrect, setNewLogCorrect] = useState(0);
+    const [newLogModalities, setNewLogModalities] = useState<StudyModality[]>(['PDF']);
+    const [newLogNotes, setNewLogNotes] = useState('');
     const [markAsCompleted, setMarkAsCompleted] = useState(false);
+
+    const MODALITIES: { id: StudyModality; label: string; icon: string }[] = [
+        { id: 'PDF', label: 'PDF / Leitura', icon: 'picture_as_pdf' },
+        { id: 'VIDEO', label: 'Videoaula', icon: 'play_lesson' },
+        { id: 'QUESTIONS', label: 'Questões', icon: 'quiz' },
+        { id: 'LEGISLATION', label: 'Lei Seca', icon: 'gavel' },
+        { id: 'REVIEW', label: 'Revisão', icon: 'cached' },
+    ];
+
+    const toggleModality = (id: StudyModality) => {
+        setNewLogModalities(prev => {
+            if (prev.includes(id)) {
+                if (prev.length === 1) return prev;
+                return prev.filter(m => m !== id);
+            }
+            return [...prev, id];
+        });
+    };
 
     // Achatar todos os logs em uma única lista com metadados da matéria
     const allLogs = useMemo(() => {
@@ -87,15 +107,17 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({ subjects, onUpdateLo
         // Se usou o ID real, usa o nome oficial. Senão, usa o digitado.
         const finalTopicName = matchingTopic ? matchingTopic.name : newLogTopic;
 
-        const newLog: StudyLog = {
+        const newLog = {
             id: `manual-${Date.now()}`,
-            date: new Date(newLogDate),
+            date: newLogDate,
             topicId: finalTopicId,
             topicName: finalTopicName,
             durationMinutes: newLogDuration,
             questionsCount: newLogQuestions,
-            correctCount: newLogCorrect
-        };
+            correctCount: newLogCorrect,
+            modalities: newLogModalities,
+            notes: newLogNotes.trim() || null
+        } as StudyLog;
 
         // Passa a flag de conclusão apenas se houver match E o usuário marcou
         onAddLog(newLogSubjectId, newLog, !!matchingTopic && markAsCompleted);
@@ -108,6 +130,8 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({ subjects, onUpdateLo
         setNewLogDuration(30);
         setNewLogQuestions(0);
         setNewLogCorrect(0);
+        setNewLogModalities(['PDF']);
+        setNewLogNotes('');
         setMarkAsCompleted(false);
     };
 
@@ -170,6 +194,7 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({ subjects, onUpdateLo
                                     <th className="p-4 rounded-tl-lg">Data</th>
                                     <th className="p-4">Disciplina</th>
                                     <th className="p-4">Tópico / Conteúdo</th>
+                                    <th className="p-4 text-center">Modalidade</th>
                                     <th className="p-4 text-center">Tempo</th>
                                     <th className="p-4 text-center">Desempenho</th>
                                     <th className="p-4 text-right rounded-tr-lg">Ações</th>
@@ -191,7 +216,7 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({ subjects, onUpdateLo
                                                         <input 
                                                             type="date" 
                                                             value={editLogData.date ? new Date(editLogData.date).toISOString().split('T')[0] : ''}
-                                                            onChange={e => setEditLogData({...editLogData, date: new Date(e.target.value)})}
+                                                            onChange={e => setEditLogData({...editLogData, date: e.target.value})}
                                                             className="w-full text-xs p-1.5 rounded border border-primary/50 bg-white dark:bg-black/20"
                                                         />
                                                     </td>
@@ -267,6 +292,17 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({ subjects, onUpdateLo
                                                     </td>
                                                     <td className="p-4 font-medium text-slate-800 dark:text-white truncate max-w-[200px]" title={log.topicName}>
                                                         {log.topicName}
+                                                    </td>
+                                                    <td className="p-4 text-center">
+                                                        <div className="flex items-center justify-center gap-1 flex-wrap">
+                                                            {(log.modalities || []).map((m: string) => {
+                                                                const icons: Record<string, string> = { PDF: 'picture_as_pdf', VIDEO: 'play_lesson', QUESTIONS: 'quiz', LEGISLATION: 'gavel', REVIEW: 'cached' };
+                                                                return (
+                                                                    <span key={m} className="material-symbols-outlined text-[14px] text-slate-400" title={m}>{icons[m] || 'circle'}</span>
+                                                                );
+                                                            })}
+                                                            {(!log.modalities || log.modalities.length === 0) && <span className="text-xs text-slate-400">-</span>}
+                                                        </div>
                                                     </td>
                                                     <td className="p-4 text-center">
                                                         <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-mono">
@@ -441,6 +477,46 @@ export const StudyHistory: React.FC<StudyHistoryProps> = ({ subjects, onUpdateLo
                                         className="w-full rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500/50 py-2.5 px-3 text-sm"
                                     />
                                 </div>
+                            </div>
+
+                            {/* Modalidades (mesmo do Modo Foco) */}
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                                    <span className="material-symbols-outlined text-[14px]">category</span>
+                                    Modalidades
+                                </label>
+                                <div className="flex flex-wrap gap-2">
+                                    {MODALITIES.map(mod => {
+                                        const isSelected = newLogModalities.includes(mod.id);
+                                        return (
+                                            <button
+                                                key={mod.id}
+                                                type="button"
+                                                onClick={() => toggleModality(mod.id)}
+                                                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all border active:scale-95 ${
+                                                    isSelected
+                                                        ? 'bg-primary/10 border-primary text-primary shadow-sm'
+                                                        : 'bg-transparent border-slate-200 dark:border-slate-700 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                                                }`}
+                                            >
+                                                <span className={`material-symbols-outlined text-[16px] ${isSelected ? 'fill' : ''}`}>{mod.icon}</span>
+                                                {mod.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Observações */}
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Observações (opcional)</label>
+                                <textarea
+                                    value={newLogNotes}
+                                    onChange={(e) => setNewLogNotes(e.target.value)}
+                                    placeholder="Anotações sobre a sessão..."
+                                    rows={2}
+                                    className="w-full rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 py-2.5 px-3 text-sm resize-none"
+                                />
                             </div>
 
                             <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800 mt-2">
