@@ -34,7 +34,7 @@ export const DynamicSchedule: React.FC<DynamicScheduleProps> = ({
     onUpdateScheduleSelection
 }) => {
     // Configurações Locais com Try/Catch para Modo Privado (Fallback de Retrocompatibilidade)
-    const settings = useMemo(() => {
+    const baseSettings = useMemo(() => {
         if (scheduleSettings) {
             return {
                 subjectsPerDay: scheduleSettings.subjectsPerDay ?? 2,
@@ -60,12 +60,25 @@ export const DynamicSchedule: React.FC<DynamicScheduleProps> = ({
         } as ScheduleSettings;
     }, [scheduleSettings]);
 
+    // Estado local para atualização otimista (evita slider travar esperando API)
+    const [localOverrides, setLocalOverrides] = useState<Partial<ScheduleSettings>>({});
+
+    // Limpa overrides locais quando o prop do servidor atualizar
+    useEffect(() => {
+        setLocalOverrides({});
+    }, [scheduleSettings]);
+
+    const settings = useMemo(() => ({ ...baseSettings, ...localOverrides }), [baseSettings, localOverrides]);
+
     const subjectsPerDay = settings.subjectsPerDay;
     const srsPace = settings.srsPace;
     const srsMode = settings.srsMode;
     const activeWeekDays = settings.activeWeekDays;
 
     const updateSetting = (key: string, value: any) => {
+        // Atualização otimista local (instantânea)
+        setLocalOverrides(prev => ({ ...prev, [key]: value }));
+
         const newSettings = { ...settings, [key]: value };
         
         // Sempre notifica o pai para salvar na API se disponível
