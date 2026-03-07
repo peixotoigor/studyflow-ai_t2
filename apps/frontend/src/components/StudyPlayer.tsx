@@ -558,23 +558,26 @@ export const StudyPlayer: React.FC<StudyPlayerProps> = ({
                         </div>
                     </div>
 
-                    <div className="bg-gradient-to-r from-primary/10 to-purple-500/10 dark:from-primary/20 dark:to-purple-500/20 rounded-xl p-1 border border-primary/20">
-                        <div className="bg-white dark:bg-[#1e1e2d] rounded-lg p-4 flex flex-col sm:flex-row items-center gap-4">
-                            <div className="bg-primary/10 p-3 rounded-full shrink-0">
-                                <span className="material-symbols-outlined text-primary text-2xl">smart_toy</span>
+                    {/* TUTOR IA - Botão Inline Proeminente */}
+                    <button
+                        onClick={() => setIsChatOpen(true)}
+                        className="w-full flex items-center gap-4 p-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-600 text-white rounded-2xl shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all active:scale-[0.98] group"
+                    >
+                        <div className="relative shrink-0">
+                            <div className="bg-white/20 backdrop-blur-sm p-3 rounded-xl group-hover:bg-white/30 transition-colors">
+                                <span className="material-symbols-outlined text-2xl">smart_toy</span>
                             </div>
-                            <div className="flex-1 w-full text-center sm:text-left">
-                                <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-1">Dúvidas no conteúdo?</h3>
-                                <p className="text-slate-500 dark:text-slate-400 text-xs">Peça uma explicação rápida ao Tutor IA sem perder o foco.</p>
-                            </div>
-                            <button 
-                                onClick={() => setIsChatOpen(true)}
-                                className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-semibold text-sm hover:opacity-90 transition-opacity whitespace-nowrap active:scale-95"
-                            >
-                                Consultar Tutor IA
-                            </button>
+                            <span className="absolute -top-1 -right-1 flex size-3">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full size-3 bg-green-400 ring-2 ring-white/30"></span>
+                            </span>
                         </div>
-                    </div>
+                        <div className="flex-1 text-left">
+                            <h3 className="font-bold text-base leading-tight">Consultar Tutor IA</h3>
+                            <p className="text-white/70 text-xs mt-0.5">Tire dúvidas, peça resumos e explicações sobre {currentItem.subject.name}</p>
+                        </div>
+                        <span className="material-symbols-outlined text-white/60 group-hover:text-white group-hover:translate-x-1 transition-all text-2xl">arrow_forward</span>
+                    </button>
                 </div>
 
                 {/* FILA DE ESTUDOS DO DIA */}
@@ -695,6 +698,24 @@ export const StudyPlayer: React.FC<StudyPlayerProps> = ({
                 onSaveNote={onSaveNote}
             />
 
+            {/* Floating Action Button - Tutor IA (visível quando chat está fechado) */}
+            {!isChatOpen && (
+                <button
+                    onClick={() => setIsChatOpen(true)}
+                    className="fixed bottom-24 md:bottom-8 right-6 z-30 flex items-center gap-2 px-5 py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-full shadow-xl shadow-purple-500/30 hover:shadow-purple-500/50 transition-all active:scale-95 group"
+                    title="Abrir Tutor IA"
+                >
+                    <span className="relative">
+                        <span className="material-symbols-outlined text-xl">smart_toy</span>
+                        <span className="absolute -top-1 -right-1 flex size-2.5">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full size-2.5 bg-green-400"></span>
+                        </span>
+                    </span>
+                    <span className="font-bold text-sm hidden sm:inline">Tutor IA</span>
+                </button>
+            )}
+
             {/* Modal de Relatório da Sessão */}
             {isReportOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -754,7 +775,7 @@ export const StudyPlayer: React.FC<StudyPlayerProps> = ({
                                         className="w-full appearance-none pl-4 pr-10 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 text-sm font-medium transition-all shadow-sm cursor-pointer hover:border-primary/50"
                                     >
                                         <option value="">Geral / Revisão (Sem Tópico Específico)</option>
-                                        {currentItem.subject.topics.map(t => (
+                                        {(currentItem.subject.topics || []).map(t => (
                                             <option key={t.id} value={t.id}>
                                                 {t.name} {t.completed ? '(Concluído)' : ''}
                                             </option>
@@ -798,7 +819,7 @@ export const StudyPlayer: React.FC<StudyPlayerProps> = ({
                                     <div className="flex flex-col">
                                         <span className="text-sm font-bold text-slate-900 dark:text-white">Marcar Tópico como Concluído?</span>
                                         <span className="text-xs text-slate-500 dark:text-slate-400">
-                                            {currentItem.subject.topics.find(t => t.id === sessionTopicId)?.name || "Tópico Selecionado"}
+                                          {sessionTopicId && ((currentItem.subject.topics || []).find(t => t.id === sessionTopicId)?.name || "Tópico Selecionado")}
                                         </span>
                                     </div>
                                 </div>
