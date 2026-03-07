@@ -22,11 +22,16 @@ export const AiTutorChat: React.FC<AiTutorChatProps> = ({ isOpen, onClose, subje
     ]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     // Auto-scroll to bottom
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTo({
+                top: scrollContainerRef.current.scrollHeight,
+                behavior: 'smooth'
+            });
+        }
     }, [messages, isOpen]);
 
     const handleSend = async () => {
@@ -140,7 +145,7 @@ export const AiTutorChat: React.FC<AiTutorChatProps> = ({ isOpen, onClose, subje
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 bg-background-light dark:bg-background-dark/50">
+            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 bg-background-light dark:bg-background-dark/50">
                 {messages.map((msg) => (
                     <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-[90%] rounded-2xl p-3 text-sm shadow-sm group relative ${
@@ -172,7 +177,6 @@ export const AiTutorChat: React.FC<AiTutorChatProps> = ({ isOpen, onClose, subje
                         </div>
                     </div>
                 )}
-                <div ref={messagesEndRef} />
             </div>
 
             {/* Input Area */}
