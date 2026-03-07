@@ -17,7 +17,11 @@ export const SimulatedExams: React.FC<SimulatedExamsProps> = ({ exams, onAddExam
     const [totalQuestions, setTotalQuestions] = useState(100);
     const [correctAnswers, setCorrectAnswers] = useState(0);
 
-    const sortedExams = [...exams].sort((a, b) => b.date.getTime() - a.date.getTime());
+    const sortedExams = [...exams].sort((a, b) => {
+        const dateA = typeof a.date === 'string' ? new Date(a.date) : (a.date as Date);
+        const dateB = typeof b.date === 'string' ? new Date(b.date) : (b.date as Date);
+        return dateB.getTime() - dateA.getTime();
+    });
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -28,9 +32,12 @@ export const SimulatedExams: React.FC<SimulatedExamsProps> = ({ exams, onAddExam
             planId: 'current', // Será gerido pelo App.tsx idealmente, mas simplificado aqui
             title,
             institution: institution || 'Autoral',
-            date: new Date(date),
+            date: new Date(date).toISOString(),
             totalQuestions,
             correctAnswers,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            notes: ''
         };
 
         onAddExam(newExam);
@@ -51,10 +58,13 @@ export const SimulatedExams: React.FC<SimulatedExamsProps> = ({ exams, onAddExam
         );
 
         // Preparar dados (cronológico)
-        const chartData = [...sortedExams].reverse().map(e => ({
-            date: e.date.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit'}),
-            pct: Math.round((e.correctAnswers / e.totalQuestions) * 100)
-        }));
+        const chartData = [...sortedExams].reverse().map(e => {
+            const dateObj = typeof e.date === 'string' ? new Date(e.date) : (e.date as Date);
+            return {
+                date: (dateObj as Date).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit'}),
+                pct: Math.round((e.correctAnswers / e.totalQuestions) * 100)
+            };
+        });
 
         const height = 200; 
         const width = 600; 
@@ -146,7 +156,7 @@ export const SimulatedExams: React.FC<SimulatedExamsProps> = ({ exams, onAddExam
                                         <h3 className="font-bold text-lg text-slate-900 dark:text-white leading-tight">{exam.title}</h3>
                                         <span className="text-xs text-slate-500 mt-1 flex items-center gap-1">
                                             <span className="material-symbols-outlined text-[14px]">calendar_today</span>
-                                            {new Date(exam.date).toLocaleDateString()}
+                                            {(typeof exam.date === 'string' ? new Date(exam.date) : exam.date).toLocaleDateString()}
                                         </span>
                                     </div>
                                     <div className={`flex flex-col items-center justify-center size-14 rounded-xl ${gradeColor}`}>
