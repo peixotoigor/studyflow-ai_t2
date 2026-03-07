@@ -632,6 +632,24 @@ const MigratedAppPage = () => {
     }
   };
 
+  const handleEditSimulatedExam = async (exam: SimulatedExam) => {
+    try {
+      await updateSimulatedExam.mutateAsync({
+        id: exam.id,
+        title: exam.title,
+        institution: exam.institution,
+        date: exam.date,
+        totalQuestions: exam.totalQuestions,
+        correctAnswers: exam.correctAnswers,
+        notes: exam.notes || undefined
+      });
+      await pushSync();
+    } catch (error) {
+      console.error('Erro ao atualizar simulado:', error);
+      alert('Erro ao atualizar simulado. Tente novamente.');
+    }
+  };
+
   const handleDeleteSimulatedExam = async (id: string) => {
     if (window.confirm('Apagar?')) {
       try {
@@ -1111,6 +1129,7 @@ const MigratedAppPage = () => {
           <SimulatedExams
             exams={currentPlanExams}
             onAddExam={handleAddSimulatedExam}
+            onEditExam={handleEditSimulatedExam}
             onDeleteExam={handleDeleteSimulatedExam}
           />
         );
