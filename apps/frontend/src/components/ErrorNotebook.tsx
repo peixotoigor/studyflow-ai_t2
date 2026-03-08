@@ -304,48 +304,48 @@ export const ErrorNotebook: React.FC<ErrorNotebookProps> = ({ subjects, logs, on
                         </div>
                         
                         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="flex flex-col gap-1.5">
+                            <div className="flex flex-col md:flex-row gap-4">
+                                <div className="flex flex-col gap-1.5 flex-1">
                                     <label className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Disciplina *</label>
                                     <select 
                                         required
                                         value={selectedSubjectId}
                                         onChange={(e) => setSelectedSubjectId(e.target.value)}
-                                        className="w-full rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50"
+                                        className="w-full rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 text-sm py-2 px-3"
                                     >
                                         <option value="">Selecione...</option>
                                         {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                     </select>
                                 </div>
-                                <div className="flex flex-col gap-1.5">
+                                <div className="flex flex-col gap-1.5 flex-1">
                                     <label className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Tópico / Assunto</label>
                                     <input 
                                         type="text"
                                         value={topicName}
                                         onChange={(e) => setTopicName(e.target.value)}
                                         placeholder="Ex: Crase"
-                                        className="w-full rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50"
+                                        className="w-full rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 text-sm py-2 px-3"
                                     />
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="flex flex-col gap-1.5">
+                            <div className="flex flex-col md:flex-row gap-4">
+                                <div className="flex flex-col gap-1.5 flex-1">
                                     <label className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Fonte da Questão</label>
                                     <input 
                                         type="text"
                                         value={questionSource}
                                         onChange={(e) => setQuestionSource(e.target.value)}
                                         placeholder="Ex: CESPE 2024 - Polícia Federal"
-                                        className="w-full rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50"
+                                        className="w-full rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 text-sm py-2 px-3"
                                     />
                                 </div>
-                                <div className="flex flex-col gap-1.5">
+                                <div className="flex flex-col gap-1.5 flex-1">
                                     <label className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Diagnóstico do Erro</label>
                                     <select 
                                         value={reason}
                                         onChange={(e) => setReason(e.target.value as ErrorReason)}
-                                        className="w-full rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50"
+                                        className="w-full rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 text-sm py-2 px-3"
                                     >
                                         {errorReasons.map(r => (
                                             <option key={r.value} value={r.value}>{r.label}</option>
