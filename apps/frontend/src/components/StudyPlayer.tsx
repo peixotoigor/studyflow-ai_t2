@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { AiTutorChat } from './AiTutorChat';
-import { Subject, ScheduleItem, Topic, StudyModality, Screen, ErrorLog } from '../types';
+import { Subject, ScheduleItem, Topic, StudyModality, Screen, ErrorLog, ErrorReason } from '../types';
 import { generateMonthlySchedule } from '../utils/scheduler';
 
 interface StudyPlayerProps {
@@ -13,6 +13,7 @@ interface StudyPlayerProps {
     onNavigate?: (screen: Screen) => void;
     onSaveNote?: (content: string, subject: string, topic: string) => void;
     errorLogs?: ErrorLog[]; 
+    onUpdateErrorLog?: (id: string, updatedLog: Partial<ErrorLog>) => void;
     scheduleSettings?: any;
     scheduleSelection?: string[] | null;
 }
@@ -43,12 +44,18 @@ export const StudyPlayer: React.FC<StudyPlayerProps> = ({
     onNavigate, 
     onSaveNote, 
     errorLogs = [],
+    onUpdateErrorLog,
     scheduleSettings,
     scheduleSelection
 }) => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [isReportOpen, setIsReportOpen] = useState(false);
+    
+    // Estado dos flashcards/erros
+    const [expandedErrorId, setExpandedErrorId] = useState<string | null>(null);
+    const [editingErrorId, setEditingErrorId] = useState<string | null>(null);
+    const [editErrorData, setEditErrorData] = useState<Partial<ErrorLog>>({});
     
     // Estado da Playlist do Dia
     const [todaysQueue, setTodaysQueue] = useState<ScheduleItem[]>([]);
@@ -572,6 +579,171 @@ export const StudyPlayer: React.FC<StudyPlayerProps> = ({
                         </div>
                     </div>
 
+                    {/* Mapeamento de Erros da Disciplina */}
+                    {currentItem && (
+                        <div className="bg-white dark:bg-[#1e1e2d] rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-red-500">error</span>
+                                    Erros Mapeados
+                                </h3>
+                                <span className="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-bold px-3 py-1 rounded-full text-xs">
+                                    {errorLogs.filter(log => log.subjectId === currentItem.subject.id).length} Erros
+                                </span>
+                            </div>
+                            
+                            <div className="flex flex-col gap-3">
+                                {errorLogs.filter(log => log.subjectId === currentItem.subject.id).length === 0 ? (
+                                    <p className="text-sm text-slate-500 dark:text-slate-400 italic text-center py-4">
+                                        Nenhum erro registrado para esta disciplina.
+                                    </p>
+                                ) : (
+                                    errorLogs.filter(log => log.subjectId === currentItem.subject.id).map(log => {
+                                        const isExpanded = expandedErrorId === log.id;
+                                        const isEditing = editingErrorId === log.id;
+
+                                        return (
+                                            <div key={log.id} className="border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden transition-all duration-300">
+                                                {/* Header / Resumo visível sempre */}
+                                                <div 
+                                                    className="flex items-center justify-between p-4 bg-gray-50/50 dark:bg-gray-800/20 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors"
+                                                    onClick={() => {
+                                                        if (!isEditing) {
+                                                            setExpandedErrorId(isExpanded ? null : log.id);
+                                                            if (!isExpanded) setEditingErrorId(null);
+                                                        }
+                                                    }}
+                                                >
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-bold text-slate-900 dark:text-white">{log.topicName}</span>
+                                                        <span className="text-xs text-slate-500 dark:text-slate-400">Fonte: {log.questionSource || 'Não informada'}</span>
+                                                    </div>
+                                                    <span className={`material-symbols-outlined text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
+                                                        expand_more
+                                                    </span>
+                                                </div>
+
+                                                {/* Corpo Expandido */}
+                                                {isExpanded && (
+                                                    <div className="p-4 bg-white dark:bg-[#1e1e2d] border-t border-slate-100 dark:border-slate-800 flex flex-col gap-4">
+                                                        {isEditing ? (
+                                                            // Modo Edição
+                                                            <div className="flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-200">
+                                                                <div className="flex flex-col gap-1.5">
+                                                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Motivo</label>
+                                                                    <select 
+                                                                        value={editErrorData.reason || log.reason}
+                                                                        onChange={e => setEditErrorData({...editErrorData, reason: e.target.value as ErrorReason})}
+                                                                        className="w-full rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"
+                                                                    >
+                                                                        <option value="KNOWLEDGE_GAP">Falta de Conhecimento (Branco)</option>
+                                                                        <option value="ATTENTION">Falta de Atenção (Bobeira)</option>
+                                                                        <option value="INTERPRETATION">Erro de Interpretação</option>
+                                                                        <option value="TRICK">Pegadinha</option>
+                                                                        <option value="TIME">Falta de Tempo</option>
+                                                                    </select>
+                                                                </div>
+                                                                <div className="flex flex-col gap-1.5">
+                                                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Por que eu errei?</label>
+                                                                    <textarea 
+                                                                        rows={2}
+                                                                        value={editErrorData.description !== undefined ? editErrorData.description : log.description}
+                                                                        onChange={e => setEditErrorData({...editErrorData, description: e.target.value})}
+                                                                        className="w-full rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm resize-none border px-3 py-2"
+                                                                        placeholder="Descreva o que te levou ao erro..."
+                                                                    />
+                                                                </div>
+                                                                <div className="flex flex-col gap-1.5">
+                                                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Resumo da Correção (Pulo do gato)</label>
+                                                                    <textarea 
+                                                                        rows={3}
+                                                                        value={editErrorData.correction !== undefined ? editErrorData.correction : log.correction}
+                                                                        onChange={e => setEditErrorData({...editErrorData, correction: e.target.value})}
+                                                                        className="w-full rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm resize-none border px-3 py-2"
+                                                                        placeholder="Anotação para não errar novamente..."
+                                                                    />
+                                                                </div>
+                                                                <div className="flex items-center justify-end gap-2 mt-2">
+                                                                    <button 
+                                                                        onClick={() => {
+                                                                            setEditingErrorId(null);
+                                                                            setEditErrorData({});
+                                                                        }}
+                                                                        className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                                                                    >
+                                                                        Cancelar
+                                                                    </button>
+                                                                    <button 
+                                                                        onClick={async () => {
+                                                                            if (onUpdateErrorLog) {
+                                                                                await onUpdateErrorLog(log.id, editErrorData);
+                                                                                setEditingErrorId(null);
+                                                                                setEditErrorData({});
+                                                                            }
+                                                                        }}
+                                                                        className="px-4 py-1.5 text-xs font-bold bg-primary text-white rounded-lg hover:bg-blue-600 transition-colors shadow-sm"
+                                                                    >
+                                                                        Salvar Alterações
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            // Modo Visualização
+                                                            <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+                                                                <div className="flex items-start gap-3">
+                                                                    <div className="bg-red-50 dark:bg-red-900/10 p-2 rounded-lg mt-0.5">
+                                                                        <span className="material-symbols-outlined text-red-500 text-[18px]">help_center</span>
+                                                                    </div>
+                                                                    <div className="flex flex-col">
+                                                                        <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Por que eu errei?</span>
+                                                                        <p className="text-sm text-slate-700 dark:text-slate-300 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl border border-gray-100 dark:border-gray-800 leading-relaxed">
+                                                                            <span className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                                                                                {log.reason === 'KNOWLEDGE_GAP' && "🧠 Falta de Conhecimento"}
+                                                                                {log.reason === 'ATTENTION' && "👀 Falta de Atenção (Bobeira)"}
+                                                                                {log.reason === 'INTERPRETATION' && "📖 Erro de Interpretação"}
+                                                                                {log.reason === 'TRICK' && "🤡 Pegadinha"}
+                                                                                {log.reason === 'TIME' && "⏱️ Falta de Tempo"}
+                                                                            </span>
+                                                                            {log.description || <span className="italic text-slate-400">Sem descrição detalhada.</span>}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                <div className="flex items-start gap-3">
+                                                                    <div className="bg-green-50 dark:bg-green-900/10 p-2 rounded-lg mt-0.5">
+                                                                        <span className="material-symbols-outlined text-green-500 text-[18px]">lightbulb</span>
+                                                                    </div>
+                                                                    <div className="flex flex-col flex-1">
+                                                                        <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Resumo da Correção</span>
+                                                                        <p className="text-sm text-slate-700 dark:text-slate-300 bg-green-50/50 dark:bg-green-900/5 p-3 rounded-xl border border-green-100/50 dark:border-green-800/30 leading-relaxed whitespace-pre-wrap">
+                                                                            {log.correction || <span className="italic text-slate-400">Sem resumo da correção.</span>}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="flex justify-end mt-2">
+                                                                    <button 
+                                                                        onClick={() => {
+                                                                            setEditingErrorId(log.id);
+                                                                            setEditErrorData({ reason: log.reason, description: log.description, correction: log.correction });
+                                                                        }}
+                                                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors"
+                                                                    >
+                                                                        <span className="material-symbols-outlined text-[16px]">edit</span>
+                                                                        Editar Erro
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* FILA DE ESTUDOS DO DIA */}

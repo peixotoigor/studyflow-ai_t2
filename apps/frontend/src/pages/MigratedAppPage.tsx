@@ -613,6 +613,19 @@ const MigratedAppPage = () => {
     }
   };
 
+  const handleUpdateErrorLog = async (id: string, updatedLog: Partial<ErrorLog>) => {
+    try {
+      await updateErrorLog.mutateAsync({
+        id,
+        ...updatedLog
+      });
+      await pushSync();
+    } catch (error) {
+      console.error('Erro ao atualizar log de erro:', error);
+      alert('Erro ao atualizar erro. Tente novamente.');
+    }
+  };
+
   const handleDeleteErrorLog = async (id: string) => {
     if (window.confirm('Apagar?')) {
       try {
@@ -911,6 +924,7 @@ const MigratedAppPage = () => {
             onNavigate={setCurrentScreen}
             onSaveNote={handleAddSavedNote}
             errorLogs={currentPlanErrorLogs}
+            onUpdateErrorLog={handleUpdateErrorLog}
             scheduleSettings={settings.scheduleSettings}
             scheduleSelection={settings.scheduleSelection}
           />
