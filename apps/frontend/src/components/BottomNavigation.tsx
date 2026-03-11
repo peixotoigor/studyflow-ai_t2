@@ -4,9 +4,10 @@ import { Screen } from '../types';
 interface BottomNavigationProps {
     currentScreen: Screen;
     onNavigate: (screen: Screen) => void;
+    onLogout: () => void;
 }
 
-export const BottomNavigation: React.FC<BottomNavigationProps> = ({ currentScreen, onNavigate }) => {
+export const BottomNavigation: React.FC<BottomNavigationProps> = ({ currentScreen, onNavigate, onLogout }) => {
     const navItems = [
         { id: Screen.DASHBOARD, label: 'Início', icon: 'dashboard' },
         { id: Screen.DYNAMIC_SCHEDULE, label: 'Plano', icon: 'calendar_month' },
@@ -17,7 +18,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({ currentScree
 
     return (
         <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-[#1a1a2e] border-t border-border-light dark:border-border-dark z-40 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-            <div className="flex justify-around items-center h-16">
+            <div className="grid grid-cols-6 items-center h-16">
                 {navItems.map(item => {
                     const isActive = currentScreen === item.id;
                     return (
@@ -39,6 +40,17 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({ currentScree
                         </button>
                     )
                 })}
+                <button
+                    onClick={onLogout}
+                    className="flex flex-col items-center justify-center w-full h-full gap-1 text-red-500 active:scale-95 transition-transform hover:text-red-600"
+                    title="Sair"
+                    aria-label="Sair"
+                >
+                    <div className="relative px-4 py-1 rounded-full transition-colors">
+                        <span className="material-symbols-outlined text-[24px]">logout</span>
+                    </div>
+                    <span className="text-[10px] font-medium leading-none">Sair</span>
+                </button>
             </div>
         </div>
     );

@@ -503,9 +503,12 @@ const MigratedAppPage = () => {
   const allSavedNotes = safeSummaryData.savedNotes;
 
   // Handlers
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } finally {
+      navigate('/login');
+    }
   };
 
   const handleAddPlan = async (name: string) => {
@@ -1310,7 +1313,7 @@ const MigratedAppPage = () => {
           onUpdateUser={handleUpdateUser}
           onUpdatePlan={handleUpdatePlan}
           onOpenProfile={() => setIsProfileOpen(true)}
-          onLock={handleLogout}
+          onLock={() => { void handleLogout(); }}
         />
 
         <main className="flex-1 flex flex-col h-full overflow-hidden relative transition-colors duration-200">
@@ -1332,6 +1335,15 @@ const MigratedAppPage = () => {
               )}
             </div>
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => { void handleLogout(); }}
+                className="flex items-center gap-2 rounded-full border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-900/40 dark:text-red-400 dark:hover:bg-red-900/10"
+                title="Sair da conta"
+                aria-label="Sair da conta"
+              >
+                <span className="material-symbols-outlined text-[20px]">logout</span>
+                <span className="hidden sm:inline">Sair</span>
+              </button>
               <button
                 onClick={() => setIsProfileOpen(true)}
                 className="flex items-center justify-center size-8 rounded-full ring-2 ring-primary/20 overflow-hidden hover:ring-primary/40 transition-all"
@@ -1370,7 +1382,7 @@ const MigratedAppPage = () => {
             {renderScreen()}
           </div>
 
-          <BottomNavigation currentScreen={currentScreen} onNavigate={setCurrentScreen} />
+          <BottomNavigation currentScreen={currentScreen} onNavigate={setCurrentScreen} onLogout={() => { void handleLogout(); }} />
 
           <ProfileModal
             isOpen={isProfileOpen}
