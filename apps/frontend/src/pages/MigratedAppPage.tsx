@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -12,24 +12,27 @@ import { useCreateSavedNote, useUpdateSavedNote, useDeleteSavedNote } from '../h
 import { useUser, useUpdateUserSettings, useUpdateProfile } from '../hooks/useUser';
 import api from '../api/client';
 import { Screen } from '../types';
-import { Sidebar } from '../components/Sidebar';
-import { Dashboard } from '../components/Dashboard';
-import { StudyPlayer } from '../components/StudyPlayer';
-import { SubjectManager } from '../components/SubjectManager';
-import { StudyHistory } from '../components/StudyHistory';
-import { Importer } from '../components/Importer';
-import { DynamicSchedule } from '../components/DynamicSchedule';
-import { ErrorNotebook } from '../components/ErrorNotebook';
-import { SimulatedExams } from '../components/SimulatedExams';
-import { SavedNotes } from '../components/SavedNotes';
-import { EditalManager } from '../components/EditalManager';
-import { ProfileModal } from '../components/ProfileModal';
-import { BottomNavigation } from '../components/BottomNavigation';
 import { loadLocalSecret, saveLocalSecret } from '../utils/secrets';
 import { useTheme } from '../contexts/ThemeContext';
 import type { StudyPlan, Subject, ErrorLog, StudyLog, SimulatedExam, SavedNote, StudyModality, ImporterState, UserProfile, EditalFile } from '../types';
 
+const Sidebar = lazy(() => import('../components/Sidebar').then((module) => ({ default: module.Sidebar })));
+const Dashboard = lazy(() => import('../components/Dashboard').then((module) => ({ default: module.Dashboard })));
+const StudyPlayer = lazy(() => import('../components/StudyPlayer').then((module) => ({ default: module.StudyPlayer })));
+const SubjectManager = lazy(() => import('../components/SubjectManager').then((module) => ({ default: module.SubjectManager })));
+const StudyHistory = lazy(() => import('../components/StudyHistory').then((module) => ({ default: module.StudyHistory })));
+const Importer = lazy(() => import('../components/Importer').then((module) => ({ default: module.Importer })));
+const DynamicSchedule = lazy(() => import('../components/DynamicSchedule').then((module) => ({ default: module.DynamicSchedule })));
+const ErrorNotebook = lazy(() => import('../components/ErrorNotebook').then((module) => ({ default: module.ErrorNotebook })));
+const SimulatedExams = lazy(() => import('../components/SimulatedExams').then((module) => ({ default: module.SimulatedExams })));
+const SavedNotes = lazy(() => import('../components/SavedNotes').then((module) => ({ default: module.SavedNotes })));
+const EditalManager = lazy(() => import('../components/EditalManager').then((module) => ({ default: module.EditalManager })));
+const ProfileModal = lazy(() => import('../components/ProfileModal').then((module) => ({ default: module.ProfileModal })));
+const BottomNavigation = lazy(() => import('../components/BottomNavigation').then((module) => ({ default: module.BottomNavigation })));
+
 const isValidUUID = (value?: string) => !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+
+const ScreenFallback = () => <div className="app-loading-state">Carregando módulo...</div>;
 
 
 const MigratedAppPage = () => {
@@ -1301,20 +1304,22 @@ const MigratedAppPage = () => {
   return (
     <div className="legacy-shell">
       <div className="flex h-screen w-full overflow-hidden bg-background-light dark:bg-background-dark text-text-primary-light dark:text-text-primary-dark">
-        <Sidebar
-          currentScreen={currentScreen}
-          onNavigate={setCurrentScreen}
-          user={userProfile}
-          plans={plans}
-          currentPlanId={currentPlanId}
-          onSwitchPlan={setCurrentPlanId}
-          onAddPlan={handleAddPlan}
-          onDeletePlan={handleDeletePlan}
-          onUpdateUser={handleUpdateUser}
-          onUpdatePlan={handleUpdatePlan}
-          onOpenProfile={() => setIsProfileOpen(true)}
-          onLock={() => { void handleLogout(); }}
-        />
+        <Suspense fallback={null}>
+          <Sidebar
+            currentScreen={currentScreen}
+            onNavigate={setCurrentScreen}
+            user={userProfile}
+            plans={plans}
+            currentPlanId={currentPlanId}
+            onSwitchPlan={setCurrentPlanId}
+            onAddPlan={handleAddPlan}
+            onDeletePlan={handleDeletePlan}
+            onUpdateUser={handleUpdateUser}
+            onUpdatePlan={handleUpdatePlan}
+            onOpenProfile={() => setIsProfileOpen(true)}
+            onLock={() => { void handleLogout(); }}
+          />
+        </Suspense>
 
         <main className="flex-1 flex flex-col h-full overflow-hidden relative transition-colors duration-200">
           <header className="h-16 flex items-center justify-between px-6 border-b border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark flex-shrink-0 transition-colors duration-200 relative z-20">
@@ -1378,31 +1383,37 @@ const MigratedAppPage = () => {
             </div>
           </header>
 
-          <div className="flex-1 overflow-hidden relative flex flex-col pb-16 md:pb-0">
-            {renderScreen()}
-          </div>
+          <Suspense fallback={<ScreenFallback />}>
+            <div className="flex-1 overflow-hidden relative flex flex-col pb-16 md:pb-0">
+              {renderScreen()}
+            </div>
+          </Suspense>
 
-          <BottomNavigation currentScreen={currentScreen} onNavigate={setCurrentScreen} onLogout={() => { void handleLogout(); }} />
+          <Suspense fallback={null}>
+            <BottomNavigation currentScreen={currentScreen} onNavigate={setCurrentScreen} onLogout={() => { void handleLogout(); }} />
+          </Suspense>
 
-          <ProfileModal
-            isOpen={isProfileOpen}
-            onClose={() => setIsProfileOpen(false)}
-            user={userProfile}
-            onSave={handleUpdateUser}
-            driveBackup={{
-              onConnect: handleDriveConnect,
-              onBackup: handleBackupNow,
-              onList: handleListBackups,
-              onRestore: handleRestoreFromPrompt,
-              onApply: applyBackup,
-              status: driveStatus,
-              error: driveError,
-              loading: driveLoading,
-              backupLoading,
-              backups,
-              hasMore: !!nextBackupPageToken
-            }}
-          />
+          <Suspense fallback={null}>
+            <ProfileModal
+              isOpen={isProfileOpen}
+              onClose={() => setIsProfileOpen(false)}
+              user={userProfile}
+              onSave={handleUpdateUser}
+              driveBackup={{
+                onConnect: handleDriveConnect,
+                onBackup: handleBackupNow,
+                onList: handleListBackups,
+                onRestore: handleRestoreFromPrompt,
+                onApply: applyBackup,
+                status: driveStatus,
+                error: driveError,
+                loading: driveLoading,
+                backupLoading,
+                backups,
+                hasMore: !!nextBackupPageToken
+              }}
+            />
+          </Suspense>
         </main>
       </div>
     </div>

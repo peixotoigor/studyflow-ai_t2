@@ -36,7 +36,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       
       try {
-        localStorage.setItem(TOKEN_KEY, sessionToken); // mantem retrocompatibilidade com interceptor do axios
+        const preferredStorage = sessionStorage.getItem(TOKEN_KEY) ? sessionStorage : localStorage;
+        const secondaryStorage = preferredStorage === localStorage ? sessionStorage : localStorage;
+        preferredStorage.setItem(TOKEN_KEY, sessionToken);
+        secondaryStorage.removeItem(TOKEN_KEY);
         const response = await api.get('/auth/me');
         if (mounted) {
           setUser(response.data.user);
@@ -80,7 +83,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Agora SignIn será lidado pelos componentes usando supabase.auth.signInWithPassword
     // Este método é mantido para transições secundárias ou compatibilidade
     const primaryStorage = remember !== false ? localStorage : sessionStorage;
+    const secondaryStorage = primaryStorage === localStorage ? sessionStorage : localStorage;
     primaryStorage.setItem(TOKEN_KEY, newToken);
+    secondaryStorage.removeItem(TOKEN_KEY);
     setToken(newToken);
     setUser(newUser);
   };

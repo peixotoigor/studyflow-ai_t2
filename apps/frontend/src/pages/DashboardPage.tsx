@@ -14,7 +14,7 @@ const DashboardPage = () => {
         <h1>Studyflow</h1>
         <div>
           <span>{user?.name}</span>
-          <button onClick={() => navigate('/')}>Abrir Workspace</button>
+          <button onClick={() => navigate('/app')}>Abrir Workspace</button>
           <button onClick={logout}>Sair</button>
         </div>
       </header>

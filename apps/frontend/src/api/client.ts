@@ -8,7 +8,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('studyflow_token');
+  const token = localStorage.getItem('studyflow_token') || sessionStorage.getItem('studyflow_token');
   if (token) {
     config.headers = config.headers ?? {};
     config.headers.Authorization = `Bearer ${token}`;
@@ -22,6 +22,7 @@ api.interceptors.response.use(
     // Se for 401, limpar token e redirecionar para login
     if (error.response?.status === 401) {
       localStorage.removeItem('studyflow_token');
+      sessionStorage.removeItem('studyflow_token');
       if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
         window.location.href = '/login';
       }
