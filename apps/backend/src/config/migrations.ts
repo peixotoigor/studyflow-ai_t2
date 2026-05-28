@@ -2,39 +2,46 @@ import { sequelize } from './database';
 import { DataTypes } from 'sequelize';
 import { AiProviderConfig } from '../models/AiProviderConfig';
 
+export const ensureColumn = async (
+  qi: any,
+  tableName: string,
+  camelName: string,
+  snakeName: string,
+  options: any
+) => {
+  const table = await qi.describeTable(tableName);
+  // If the camelCase column exists and the snake_case one does not, rename it
+  if (table[camelName] && !table[snakeName]) {
+    await qi.renameColumn(tableName, camelName, snakeName);
+    console.log(`[migrate] Renomeada coluna '${camelName}' para '${snakeName}' em '${tableName}'`);
+  } 
+  // If neither exists, add the snake_case column
+  else if (!table[camelName] && !table[snakeName]) {
+    await qi.addColumn(tableName, snakeName, options);
+    console.log(`[migrate] Adicionada coluna '${snakeName}' em '${tableName}'`);
+  }
+};
+
 export const ensureUsersSchema = async () => {
   const qi = sequelize.getQueryInterface();
   try {
-    const table = await qi.describeTable('users');
-    if (!table.subscriptionStatus && !table.subscription_status) {
-      await qi.addColumn('users', 'subscriptionStatus', {
-        type: DataTypes.ENUM('free', 'premium', 'cancelled'),
-        allowNull: false,
-        defaultValue: 'free'
-      });
-      console.log('[migrate] Adicionada coluna subscriptionStatus em users');
-    }
-    if (!table.subscriptionId && !table.subscription_id) {
-      await qi.addColumn('users', 'subscriptionId', {
-        type: DataTypes.STRING,
-        allowNull: true
-      });
-      console.log('[migrate] Adicionada coluna subscriptionId em users');
-    }
-    if (!table.stripeCustomerId && !table.stripe_customer_id) {
-      await qi.addColumn('users', 'stripeCustomerId', {
-        type: DataTypes.STRING,
-        allowNull: true
-      });
-      console.log('[migrate] Adicionada coluna stripeCustomerId em users');
-    }
-    if (!table.premiumExpiresAt && !table.premium_expires_at) {
-      await qi.addColumn('users', 'premiumExpiresAt', {
-        type: DataTypes.DATE,
-        allowNull: true
-      });
-      console.log('[migrate] Adicionada coluna premiumExpiresAt em users');
-    }
+    await ensureColumn(qi, 'users', 'subscriptionStatus', 'subscription_status', {
+      type: DataTypes.ENUM('free', 'premium', 'cancelled'),
+      allowNull: false,
+      defaultValue: 'free'
+    });
+    await ensureColumn(qi, 'users', 'subscriptionId', 'subscription_id', {
+      type: DataTypes.STRING,
+      allowNull: true
+    });
+    await ensureColumn(qi, 'users', 'stripeCustomerId', 'stripe_customer_id', {
+      type: DataTypes.STRING,
+      allowNull: true
+    });
+    await ensureColumn(qi, 'users', 'premiumExpiresAt', 'premium_expires_at', {
+      type: DataTypes.DATE,
+      allowNull: true
+    });
   } catch (err) {
     console.warn('[migrate] Não foi possível inspecionar/adicionar colunas de sub em users:', err);
   }
@@ -43,29 +50,22 @@ export const ensureUsersSchema = async () => {
 export const ensureUserSettingsSchema = async () => {
   const qi = sequelize.getQueryInterface();
   try {
-    const table = await qi.describeTable('user_settings');
-    if (!table.avatar_url && !table.avatarUrl) {
-      await qi.addColumn('user_settings', 'avatarUrl', {
-        type: DataTypes.TEXT,
-        allowNull: true
-      });
-    }
+    await ensureColumn(qi, 'user_settings', 'avatarUrl', 'avatar_url', {
+      type: DataTypes.TEXT,
+      allowNull: true
+    });
   } catch (err) {
-    console.warn('[migrate] Não foi possível inspecionar/adicionar avatarUrl em user_settings:', err);
+    console.warn('[migrate] Não foi possível inspecionar/adicionar avatar_url em user_settings:', err);
   }
 
   // Ensure edital_files in study_plans
   try {
-    const tablePlans = await qi.describeTable('study_plans');
-    if (!tablePlans.edital_files && !tablePlans.editalFiles) {
-      await qi.addColumn('study_plans', 'editalFiles', {
-        type: DataTypes.JSON,
-        allowNull: true
-      });
-      console.log('[migrate] Adicionada coluna editalFiles em study_plans');
-    }
+    await ensureColumn(qi, 'study_plans', 'editalFiles', 'edital_files', {
+      type: DataTypes.JSON,
+      allowNull: true
+    });
   } catch (err) {
-    console.warn('[migrate] Não foi possível inspecionar/adicionar editalFiles em study_plans:', err);
+    console.warn('[migrate] Não foi possível inspecionar/adicionar edital_files em study_plans:', err);
   }
 };
 
