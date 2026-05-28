@@ -3,8 +3,8 @@
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  background-color: #0f172a;
-  color: #f1f5f9;
+  background-color: #FAFAFA;
+  color: #0F172A;
 }
 
 body {
@@ -1513,21 +1513,35 @@ a {
 }
 
 .landing-header {
-  position: relative;
+  position: sticky;
+  top: 0.75rem;
   z-index: 2;
   max-width: 72rem;
-  margin: 0 auto;
-  padding: 1.5rem 1.5rem 0;
+  margin: 0 auto 0.75rem;
+  padding: 0.75rem 1.5rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(18px);
 }
 
 .landing-brand {
   display: inline-flex;
   align-items: center;
   gap: 0.8rem;
+}
+
+.landing-brand-interactive {
+  transition: transform 0.25s ease;
+}
+
+.landing-brand-interactive:hover {
+  transform: translateY(-1px);
 }
 
 .landing-brand-mark {
@@ -1543,6 +1557,12 @@ a {
   font-size: 0.8rem;
   letter-spacing: 0.12em;
   box-shadow: 0 8px 24px rgba(0, 82, 255, 0.28);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.landing-brand-interactive:hover .landing-brand-mark {
+  transform: rotate(-6deg) scale(1.03);
+  box-shadow: 0 14px 30px rgba(0, 82, 255, 0.34);
 }
 
 .landing-brand-text {
@@ -1561,13 +1581,31 @@ a {
 .credential-link {
   color: #0f172a;
   text-decoration: none;
-  transition: color 0.2s ease, opacity 0.2s ease;
+  transition: color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
+}
+
+.landing-nav a {
+  position: relative;
+  padding: 0.55rem 0.8rem;
+  border-radius: 9999px;
+  transition: color 0.2s ease, opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .landing-nav a:hover,
 .landing-header-link:hover,
 .credential-link:hover {
   color: #0052ff;
+  transform: translateY(-1px);
+}
+
+.landing-nav a:hover,
+.landing-nav a.is-active {
+  background: rgba(0, 82, 255, 0.08);
+}
+
+.landing-nav a.is-active {
+  color: #0052ff;
+  box-shadow: inset 0 0 0 1px rgba(0, 82, 255, 0.12);
 }
 
 .landing-header-actions {
@@ -1595,6 +1633,13 @@ a {
   transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 
+.landing-header-button .material-symbols-outlined,
+.landing-primary-button .material-symbols-outlined,
+.landing-secondary-button .material-symbols-outlined {
+  font-size: 1.1rem;
+  transition: transform 0.25s ease;
+}
+
 .landing-header-button:hover,
 .landing-primary-button:hover,
 .credential-submit:hover:not(:disabled),
@@ -1602,6 +1647,49 @@ a {
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(0, 82, 255, 0.35);
   filter: brightness(1.05);
+}
+
+.landing-header-button:hover .material-symbols-outlined,
+.landing-primary-button:hover .material-symbols-outlined {
+  transform: translate(2px, -2px);
+}
+
+.landing-header-button:active,
+.landing-primary-button:active,
+.credential-submit:active:not(:disabled),
+.credential-hero-button-primary:active {
+  transform: scale(0.98);
+}
+
+/* ── Hover card surface (gradient overlay + shadow deepen) ── */
+.landing-hover-card {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+}
+
+.landing-hover-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(0, 82, 255, 0.04), transparent 50%);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+}
+
+.landing-hover-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px rgba(15, 23, 42, 0.12);
+}
+
+.landing-hover-card:hover::after {
+  opacity: 1;
+}
+
+.landing-hover-card:hover .landing-feature-icon {
+  transform: scale(1.1);
 }
 
 .landing-secondary-button,
@@ -1627,6 +1715,10 @@ a {
   box-shadow: 0 10px 15px rgba(15, 23, 42, 0.08);
 }
 
+.landing-secondary-button:hover .material-symbols-outlined {
+  transform: translateX(2px);
+}
+
 .landing-hero,
 .landing-section,
 .landing-final-cta,
@@ -1640,17 +1732,47 @@ a {
 
 .landing-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-  gap: 2rem;
+  grid-template-columns: minmax(0, 0.96fr) minmax(0, 1.04fr);
+  gap: 1.25rem;
   align-items: center;
   padding-top: 4.5rem;
 }
 
+.landing-hero-copy {
+  max-width: 33rem;
+}
+
 .landing-hero-copy,
 .landing-hero-visual,
-.landing-final-cta-card,
-.credential-frame {
+.landing-final-cta-card {
   position: relative;
+}
+
+.hero-orbit-stage {
+  pointer-events: none;
+}
+
+.hero-orbit-item {
+  pointer-events: none;
+  transform-origin: center center;
+  animation-name: heroOrbitUpright;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+.hero-orbit-item > * {
+  pointer-events: auto;
+}
+
+@keyframes heroOrbitUpright {
+  0% {
+    transform: rotate(0deg) translateY(calc(var(--orbit-radius) * -1)) rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg) translateY(calc(var(--orbit-radius) * -1)) rotate(-360deg);
+  }
 }
 
 .marketing-section-badge,
@@ -1692,7 +1814,8 @@ a {
 
 .landing-hero-title,
 .credential-hero-title {
-  font-size: clamp(2.9rem, 5vw, 5.25rem);
+  font-size: clamp(2.1rem, 3.4vw, 3.55rem);
+  line-height: 1.02;
 }
 
 .landing-section-title,
@@ -1717,8 +1840,9 @@ a {
 .credential-floating-copy {
   margin: 0;
   color: #64748b;
-  font-size: 1rem;
-  line-height: 1.75;
+  font-size: 0.94rem;
+  line-height: 1.72;
+  transition: transform 0.35s ease, box-shadow 0.35s ease, filter 0.35s ease;
 }
 
 .landing-hero-actions,
@@ -1727,6 +1851,39 @@ a {
   flex-wrap: wrap;
   gap: 1rem;
   margin-top: 2rem;
+}
+
+.landing-hero-signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin-top: 1rem;
+}
+
+.landing-hero-signal {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(0, 82, 255, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+  color: #0f172a;
+  font-size: 0.86rem;
+  font-weight: 600;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.landing-hero-signal .material-symbols-outlined {
+  font-size: 1rem;
+  color: #0052ff;
+}
+
+.landing-hero-signal:hover {
+  transform: translateY(-3px);
+  border-color: rgba(0, 82, 255, 0.24);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
 }
 
 .landing-hero-stats,
@@ -1802,13 +1959,12 @@ a {
 .landing-hero-ring,
 .credential-hero-ring {
   position: absolute;
-  width: 17rem;
-  height: 17rem;
-  top: 1.5rem;
-  right: 1.5rem;
+  width: 21rem;
+  height: 21rem;
+  top: 3.2rem;
+  right: 2.1rem;
   border-radius: 9999px;
-  border: 1px dashed rgba(148, 163, 184, 0.34);
-  animation: auth-rotate 60s linear infinite;
+  border: 2px dashed rgba(0, 82, 255, 0.2);
 }
 
 .landing-hero-orb,
@@ -1827,10 +1983,11 @@ a {
 .credential-hero-dots {
   position: absolute;
   top: 2rem;
-  right: 8rem;
+  left: 2rem;
   display: grid;
   grid-template-columns: repeat(3, 0.45rem);
   gap: 0.45rem;
+  opacity: 0.2;
 }
 
 .landing-hero-dots span,
@@ -1838,7 +1995,7 @@ a {
   width: 0.45rem;
   height: 0.45rem;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.34);
+  background: #0052ff;
 }
 
 .landing-accent-block,
@@ -1870,7 +2027,6 @@ a {
   top: 2rem;
   width: min(20rem, calc(100% - 6rem));
   padding: 1.25rem;
-  animation: auth-float 5s ease-in-out infinite;
 }
 
 .landing-floating-secondary,
@@ -1879,7 +2035,11 @@ a {
   bottom: 1.5rem;
   width: 14rem;
   padding: 1rem;
-  animation: auth-float-reverse 4.2s ease-in-out infinite;
+}
+
+.landing-floating-contrast {
+  background: #0f172a;
+  box-shadow: 0 24px 48px rgba(2, 6, 23, 0.48);
 }
 
 .landing-floating p,
@@ -2124,6 +2284,28 @@ a {
   color: #64748b;
 }
 
+.landing-card-kicker {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-bottom: 1rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 9999px;
+  background: rgba(0, 82, 255, 0.08);
+  color: #0052ff;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.landing-testimonial-outcome {
+  margin-top: 0.35rem;
+  color: #0f172a;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
 .landing-pricing-card {
   display: flex;
   flex-direction: column;
@@ -2148,6 +2330,14 @@ a {
 .landing-pricing-features {
   display: grid;
   gap: 0.75rem;
+}
+
+.landing-pricing-note {
+  margin: -0.25rem 0 0;
+  color: #0f172a;
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.6;
 }
 
 .landing-pricing-feature span:last-child {
@@ -2185,6 +2375,7 @@ a {
   background: linear-gradient(135deg, #0052ff, #4d7cff);
   color: #ffffff;
   box-shadow: 0 8px 24px rgba(0, 82, 255, 0.22);
+  transition: transform 0.3s ease;
 }
 
 .landing-feature-card h3,
@@ -2313,6 +2504,47 @@ a {
   flex: 0 0 auto;
 }
 
+.landing-cta-helper {
+  margin: 0.9rem 0 0;
+  color: #64748b;
+  font-size: 0.88rem;
+  line-height: 1.65;
+}
+
+.landing-cta-helper strong {
+  color: #0f172a;
+}
+
+.landing-cta-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.landing-cta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.7rem 0.95rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(0, 82, 255, 0.14);
+  background: rgba(255, 255, 255, 0.72);
+  color: #0f172a;
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, background-color 0.25s ease;
+}
+
+.landing-cta-chip:hover,
+.landing-cta-chip:focus-visible {
+  transform: translateY(-2px);
+  border-color: rgba(0, 82, 255, 0.26);
+  background: rgba(0, 82, 255, 0.06);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
+}
+
 .credential-shell {
   padding-top: 2.5rem;
   padding-bottom: 2.5rem;
@@ -2327,6 +2559,35 @@ a {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+}
+
+.credential-hover-surface {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease, background-color 0.35s ease;
+}
+
+.credential-hover-surface::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(135deg, rgba(0, 82, 255, 0.12), transparent 42%),
+    radial-gradient(circle at top right, rgba(77, 124, 255, 0.16), transparent 36%);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+}
+
+.credential-hover-surface:hover,
+.credential-hover-surface:focus-within {
+  transform: translateY(-6px);
+  box-shadow: 0 30px 64px rgba(15, 23, 42, 0.16);
+}
+
+.credential-hover-surface:hover::after,
+.credential-hover-surface:focus-within::after {
+  opacity: 1;
 }
 
 .credential-hero-main {
@@ -2372,6 +2633,17 @@ a {
 
 .credential-panel {
   backdrop-filter: blur(18px);
+}
+
+.credential-panel::before {
+  content: '';
+  position: absolute;
+  inset: auto auto -18% -10%;
+  width: 18rem;
+  height: 18rem;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(77, 124, 255, 0.14), transparent 70%);
+  pointer-events: none;
 }
 
 .credential-panel-inner {
@@ -2481,6 +2753,14 @@ a {
   background: rgba(0, 82, 255, 0.08);
 }
 
+.credential-field:focus-within .credential-field-label {
+  color: #0052ff;
+}
+
+.credential-field:focus-within .credential-field-helper {
+  color: #475569;
+}
+
 .credential-meta-row {
   display: flex;
   align-items: center;
@@ -2511,6 +2791,13 @@ a {
   border-radius: 20px;
   border: 1px solid #e2e8f0;
   background: rgba(241, 245, 249, 0.72);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.credential-password-checks:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0, 82, 255, 0.18);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
 }
 
 .credential-password-check {
@@ -2546,6 +2833,11 @@ a {
   border: 1px solid transparent;
   font-size: 0.92rem;
   line-height: 1.55;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.credential-status:hover {
+  transform: translateY(-1px);
 }
 
 .credential-status-error {
@@ -2611,6 +2903,32 @@ a {
   text-transform: uppercase;
 }
 
+.credential-metric-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.credential-metric-card:hover,
+.credential-metric-card:focus-within {
+  transform: translateY(-4px);
+  border-color: rgba(0, 82, 255, 0.2);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+}
+
+.credential-hero-grid {
+  position: absolute;
+  inset: 15% 10% auto auto;
+  width: 12rem;
+  height: 12rem;
+  border-radius: 2rem;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 18px 18px;
+  opacity: 0.7;
+  transform: rotate(8deg);
+}
+
 .credential-quote-mark {
   position: absolute;
   left: 1.1rem;
@@ -2636,6 +2954,10 @@ a {
 
   .landing-header {
     flex-wrap: wrap;
+  }
+
+  .landing-hero-visual {
+    display: none;
   }
 
   .landing-nav {
@@ -2671,6 +2993,7 @@ a {
   .landing-nav,
   .landing-header-actions,
   .landing-hero-actions,
+  .landing-hero-signals,
   .credential-hero-actions,
   .credential-meta-row {
     flex-direction: column;
@@ -2724,6 +3047,15 @@ a {
     align-items: stretch;
   }
 
+  .landing-cta-quick-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .landing-cta-chip {
+    justify-content: center;
+  }
+
   .landing-cta-button {
     width: 100%;
   }
@@ -2745,5 +3077,95 @@ a {
   .landing-hero-title,
   .credential-hero-title {
     font-size: 2.75rem;
+  }
+}
+
+/* ── Landing Footer ── */
+.landing-footer {
+  position: relative;
+  z-index: 1;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 3rem 1.5rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.landing-footer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.landing-footer-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.65rem;
+  background: linear-gradient(135deg, #0052ff, #4d7cff);
+  color: #ffffff;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+}
+
+.landing-footer-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: -0.02em;
+}
+
+.landing-footer-copy {
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+.landing-footer-links {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.landing-footer-links a {
+  color: #64748b;
+  text-decoration: none;
+  font-size: 0.88rem;
+  transition: color 0.2s ease;
+}
+
+.landing-footer-links a:hover {
+  color: #0052ff;
+}
+
+@media (max-width: 640px) {
+  .landing-footer {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 2rem 1rem 1.5rem;
+  }
+}
+
+/* ── Reduced motion for landing ── */
+@media (prefers-reduced-motion: reduce) {
+  .landing-hero-ring,
+  .landing-floating-primary,
+  .landing-floating-secondary,
+  .marketing-section-badge-dot {
+    animation: none;
+  }
+
+  .landing-hover-card,
+  .landing-hover-card::after,
+  .landing-hero-signal,
+  .landing-primary-button,
+  .landing-secondary-button,
+  .landing-header-button {
+    transition: none;
   }
 }

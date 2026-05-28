@@ -58,6 +58,7 @@ export const AuthExperience: React.FC<AuthExperienceProps> = ({
         hidden: {},
         visible: { transition: { staggerChildren: 0.1, delayChildren: 0.1 } },
       };
+  const viewport = shouldReduceMotion ? undefined : { once: true, amount: 0.15, margin: '-60px' };
 
   return (
     <div className="credential-page">
@@ -66,7 +67,7 @@ export const AuthExperience: React.FC<AuthExperienceProps> = ({
 
       <div className="credential-shell">
         <div className="credential-frame">
-          <motion.section className="credential-hero" initial="hidden" animate="visible" variants={stagger}>
+          <motion.section className="credential-hero credential-hover-surface" initial="hidden" whileInView="visible" viewport={viewport} variants={stagger}>
             <motion.div className="credential-chip" variants={fadeInUp}>
               <span className="credential-chip-icon material-symbols-outlined">auto_awesome</span>
               StudyFlow AI
@@ -92,7 +93,7 @@ export const AuthExperience: React.FC<AuthExperienceProps> = ({
 
               <motion.div className="credential-metric-grid" variants={stagger}>
                 {metrics.map((metric) => (
-                  <motion.div key={metric.label} className="credential-metric-card" variants={fadeInUp}>
+                  <motion.div key={metric.label} className="credential-metric-card credential-hover-surface" variants={fadeInUp}>
                     <span className="credential-metric-value">{metric.value}</span>
                     <span className="credential-metric-label">{metric.label}</span>
                   </motion.div>
@@ -100,48 +101,49 @@ export const AuthExperience: React.FC<AuthExperienceProps> = ({
               </motion.div>
             </div>
 
-            <div className="credential-hero-visual" aria-hidden="true">
+            <motion.div className="credential-hero-visual" aria-hidden="true" variants={fadeInUp}>
               <div className="credential-hero-ring" />
               <div className="credential-hero-orb" />
               <div className="credential-hero-block" />
+              <div className="credential-hero-grid" />
               <div className="credential-hero-dots">
                 {Array.from({ length: 9 }).map((_, index) => <span key={index} />)}
               </div>
               <div className="credential-quote-mark">“</div>
-              <div className="credential-floating-card credential-floating-card-primary">
+              <div className="credential-floating-card credential-floating-card-primary credential-hover-surface">
                 <div className="credential-badge credential-badge-on-dark">
                   <span className="credential-badge-dot" />
                   <span>{heroQuoteLabel}</span>
                 </div>
                 <p className="credential-floating-copy">{heroQuote}</p>
               </div>
-              <div className="credential-floating-card credential-floating-card-secondary">
+              <div className="credential-floating-card credential-floating-card-secondary credential-hover-surface">
                 <div className="credential-chip credential-chip-compact">
                   <span className="credential-chip-icon material-symbols-outlined">trending_up</span>
                   Fluxo contínuo
                 </div>
                 <p className="credential-floating-copy">Planejamento, execução e revisão conectados em uma única jornada.</p>
               </div>
-            </div>
+            </motion.div>
           </motion.section>
 
-          <motion.section className="credential-panel" initial="hidden" animate="visible" variants={fadeInUp}>
+          <motion.section className="credential-panel credential-hover-surface" initial="hidden" whileInView="visible" viewport={viewport} variants={stagger}>
             <div className="credential-panel-inner">
-              <div className="credential-badge credential-badge-panel">
+              <motion.div className="credential-badge credential-badge-panel" variants={fadeInUp}>
                 <span className="credential-badge-dot" />
                 <span>{eyebrow}</span>
-              </div>
+              </motion.div>
 
-              <div className="credential-title-wrap credential-title-wrap-panel">
+              <motion.div className="credential-title-wrap credential-title-wrap-panel" variants={fadeInUp}>
                 <h2 className="credential-panel-title">{title}</h2>
                 <span className="credential-title-underline credential-title-underline-panel" aria-hidden="true" />
-              </div>
+              </motion.div>
 
-              <p className="credential-panel-copy">{description}</p>
+              <motion.p className="credential-panel-copy" variants={fadeInUp}>{description}</motion.p>
 
-              {children}
+              <motion.div variants={fadeInUp}>{children}</motion.div>
 
-              <footer className="credential-footer">{footer}</footer>
+              <motion.footer className="credential-footer" variants={fadeInUp}>{footer}</motion.footer>
             </div>
           </motion.section>
         </div>

@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
+import HeroGraphic from '../components/marketing/HeroGraphic';
 import { SectionBadge } from '../components/marketing/SectionBadge';
 
 const LandingPage = () => {
   const { token } = useAuth();
   const navigate = useNavigate();
   const [ctaEmail, setCtaEmail] = useState('');
+  const [activeSection, setActiveSection] = useState('beneficios');
   const shouldReduceMotion = useReducedMotion();
   const easeOut: [number, number, number, number] = [0.16, 1, 0.3, 1];
   const fadeInUp = shouldReduceMotion
@@ -65,47 +67,59 @@ const LandingPage = () => {
 
   const testimonials = [
     {
-      quote: 'O StudyFlow tirou minha rotina do improviso e transformou cada sessão em execução objetiva.',
+      badge: 'Rotina estabilizada',
+      quote: 'Em poucas semanas eu parei de negociar comigo mesma antes de estudar. Entro, vejo o próximo bloco e executo.',
       author: 'Marina A.',
       role: 'Concurso fiscal',
+      outcome: 'menos dispersão, mais constância semanal',
     },
     {
-      quote: 'A interface tem presença, mas não distrai. Tudo parece desenhado para eu continuar estudando.',
+      badge: 'Mais convertida',
+      quote: 'Foi a primeira vez que senti uma plataforma puxando minha rotina para frente em vez de me entregar mais uma tela para administrar.',
       author: 'Pedro R.',
       role: 'Carreira jurídica',
+      outcome: 'retorno diário com menos atrito de decisão',
       featured: true,
     },
     {
-      quote: 'Planejamento, revisão e simulado finalmente ficaram no mesmo sistema com clareza real.',
+      badge: 'Ciclo fechado',
+      quote: 'Planejamento, revisão e simulado finalmente passaram a conversar. O estudo deixou de parecer fragmentado.',
       author: 'Luiza M.',
       role: 'Área policial',
+      outcome: 'mais previsibilidade para corrigir rota',
     },
   ];
 
   const pricing = [
     {
       name: 'Essencial',
+      badge: 'Entrada imediata',
       price: 'R$ 0',
-      description: 'Para conhecer a estrutura e iniciar a organização da rotina.',
-      features: ['Landing + cadastro no mesmo padrão visual', 'Fluxo inicial de acesso', 'Base para planejamento'],
-      cta: 'Começar grátis',
+      description: 'Para sair do improviso hoje e validar a lógica do fluxo antes de elevar o ritmo.',
+      features: ['Cadastro rápido com continuidade visual', 'Base inicial para organizar matérias e prioridades', 'Primeiro fluxo de acesso pronto para uso'],
+      cta: 'Começar hoje',
+      note: 'Ideal para testar aderência com risco zero.',
       to: '/register',
     },
     {
       name: 'Progresso',
+      badge: 'Mais escolhido',
       price: 'R$ 29',
-      description: 'Para quem precisa de constância, leitura rápida de progresso e execução guiada.',
-      features: ['Ritmo de estudo centralizado', 'Anotações, simulados e revisão', 'Camada visual premium e viva'],
-      cta: 'Entrar agora',
+      description: 'Para quem quer constância real, retorno diário mais fácil e um sistema que empurra a rotina para frente.',
+      features: ['Execução guiada com menos atrito de decisão', 'Anotações, simulados e revisão no mesmo ciclo', 'Leitura rápida de progresso para manter cadência'],
+      cta: token ? 'Abrir agora' : 'Assinar e entrar',
+      note: 'O melhor ponto entre velocidade de entrada e profundidade de uso.',
       to: token ? '/app' : '/login',
       featured: true,
     },
     {
       name: 'Intensivo',
+      badge: 'Operação máxima',
       price: 'R$ 59',
-      description: 'Para cenários de alta exigência com múltiplas frentes e recalibração constante.',
-      features: ['Operação orientada por dados', 'Maior previsibilidade do plano', 'Execução com menos atrito'],
-      cta: 'Falar com a equipe',
+      description: 'Para cenários de pressão alta, múltiplas frentes e ajustes frequentes sem perder a visão do todo.',
+      features: ['Operação orientada por evidência e histórico', 'Mais previsibilidade para recalibrar o plano', 'Ambiente preparado para rotina intensa e contínua'],
+      cta: 'Quero esse nível',
+      note: 'Pensado para quem já sabe que não pode depender de improviso.',
       to: '/register',
     },
   ];
@@ -125,12 +139,55 @@ const LandingPage = () => {
     },
   ];
 
+  const normalizedEmail = ctaEmail.trim().toLowerCase();
+  const ctaPrimaryLabel = token ? 'Abrir meu app' : normalizedEmail ? 'Continuar cadastro' : 'Começar cadastro';
+  const ctaHelper = token
+    ? 'Sua sessão já está ativa. Use o CTA principal para voltar direto ao workspace.'
+    : normalizedEmail
+      ? `Vamos abrir o cadastro com ${normalizedEmail} já preenchido para reduzir atrito na entrada.`
+      : 'Digite seu e-mail para acelerar o cadastro ou use um dos atalhos rápidos abaixo.';
+
   const handleCtaSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    const normalizedEmail = ctaEmail.trim().toLowerCase();
+    if (token) {
+      navigate('/app');
+      return;
+    }
+
     const query = normalizedEmail ? `?email=${encodeURIComponent(normalizedEmail)}` : '';
     navigate(`/register${query}`);
   };
+
+  useEffect(() => {
+    const sectionIds = ['beneficios', 'fluxo', 'faq', 'cta'];
+    const sections = sectionIds
+      .map((id) => document.getElementById(id))
+      .filter((section): section is HTMLElement => Boolean(section));
+
+    if (!sections.length) {
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visibleEntries = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((left, right) => right.intersectionRatio - left.intersectionRatio);
+
+        if (visibleEntries.length > 0) {
+          setActiveSection(visibleEntries[0].target.id);
+        }
+      },
+      {
+        rootMargin: '-20% 0px -55% 0px',
+        threshold: [0.2, 0.35, 0.5, 0.7],
+      }
+    );
+
+    sections.forEach((section) => observer.observe(section));
+
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div className="landing-page">
@@ -138,21 +195,24 @@ const LandingPage = () => {
       <div className="landing-glow landing-glow-right" />
 
       <header className="landing-header">
-        <div className="landing-brand">
+        <div className="landing-brand landing-brand-interactive">
           <span className="landing-brand-mark">SF</span>
           <span className="landing-brand-text">StudyFlow AI</span>
         </div>
 
         <nav className="landing-nav" aria-label="Navegação principal">
-          <a href="#beneficios">Benefícios</a>
-          <a href="#fluxo">Fluxo</a>
-          <a href="#faq">FAQ</a>
-          <a href="#cta">Começar</a>
+          <a className={activeSection === 'beneficios' ? 'is-active' : ''} href="#beneficios">Benefícios</a>
+          <a className={activeSection === 'fluxo' ? 'is-active' : ''} href="#fluxo">Fluxo</a>
+          <a className={activeSection === 'faq' ? 'is-active' : ''} href="#faq">FAQ</a>
+          <a className={activeSection === 'cta' ? 'is-active' : ''} href="#cta">Começar</a>
         </nav>
 
         <div className="landing-header-actions">
           <Link className="landing-header-link" to="/login">Login</Link>
-          <Link className="landing-header-button" to={token ? '/app' : '/register'}>{token ? 'Abrir app' : 'Criar conta'}</Link>
+          <Link className="landing-header-button" to={token ? '/app' : '/register'}>
+            <span>{token ? 'Abrir app' : 'Criar conta'}</span>
+            <span className="material-symbols-outlined">arrow_outward</span>
+          </Link>
         </div>
       </header>
 
@@ -163,47 +223,14 @@ const LandingPage = () => {
               <SectionBadge label="Minimalist Modern" />
             </motion.div>
             <motion.h1 className="landing-hero-title" variants={fadeInUp}>
-              Estrutura para estudar, presença para sustentar <span className="landing-gradient-text">ritmo</span>.
+              Pare de perder energia decidindo o que estudar e entre num fluxo que sustenta <span className="landing-gradient-text">constância</span>.
             </motion.h1>
             <motion.p className="landing-hero-description" variants={fadeInUp}>
-              Uma landing page pública desenhada com a mesma assinatura do arquivo de referência: tipografia memorável, contraste intencional, azul elétrico e movimento sutil para transformar clareza em percepção de valor.
+              O StudyFlow AI organiza prioridade, mostra o próximo passo e reduz o atrito entre intenção e execução. Você entra, entende o foco do momento e continua estudando sem negociar com o caos da rotina.
             </motion.p>
-            <motion.div className="landing-hero-actions" variants={fadeInUp}>
-              <Link className="landing-primary-button" to="/login">Fazer login</Link>
-              <Link className="landing-secondary-button" to="/register">Criar cadastro</Link>
-            </motion.div>
-            <motion.div className="landing-hero-stats" variants={stagger}>
-              {[
-                { value: '1 fluxo', label: 'do acesso à execução' },
-                { value: '24/7', label: 'plataforma disponível' },
-                { value: 'AA', label: 'contraste e foco visível' },
-              ].map((item) => (
-                <motion.div key={item.label} className="landing-stat-card" variants={fadeInUp}>
-                  <span className="landing-stat-value">{item.value}</span>
-                  <span className="landing-stat-label">{item.label}</span>
-                </motion.div>
-              ))}
-            </motion.div>
           </motion.div>
 
-          <motion.div className="landing-hero-visual" initial="hidden" animate="visible" variants={fadeInUp}>
-            <div className="landing-hero-panel">
-              <div className="landing-hero-ring" />
-              <div className="landing-hero-orb" />
-              <div className="landing-hero-dots">
-                {Array.from({ length: 9 }).map((_, index) => <span key={index} />)}
-              </div>
-              <div className="landing-floating landing-floating-primary">
-                <SectionBadge label="Aprovação guiada" />
-                <p>O próximo passo fica visível, o contexto fica organizado e o ritmo deixa de depender de improviso.</p>
-              </div>
-              <div className="landing-floating landing-floating-secondary">
-                <span className="landing-trend-chip"><span className="material-symbols-outlined">north_east</span> progresso contínuo</span>
-                <p>Interface viva, sofisticada e objetiva para estudar sem dispersão.</p>
-              </div>
-              <div className="landing-accent-block" />
-            </div>
-          </motion.div>
+          <HeroGraphic />
         </section>
 
         <motion.section className="landing-contrast-section" initial="hidden" whileInView="visible" viewport={viewport} variants={stagger}>
@@ -297,11 +324,13 @@ const LandingPage = () => {
           <motion.div className="landing-testimonials-grid" variants={stagger}>
             {testimonials.map((item) => (
               <motion.article key={item.author} className={`landing-testimonial-card landing-hover-card${item.featured ? ' is-featured' : ''}`} variants={fadeInUp}>
+                <span className="landing-card-kicker">{item.badge}</span>
                 <div className="landing-testimonial-quote-mark">“</div>
                 <p>{item.quote}</p>
                 <div className="landing-testimonial-meta">
                   <strong>{item.author}</strong>
                   <span>{item.role}</span>
+                  <span className="landing-testimonial-outcome">{item.outcome}</span>
                 </div>
               </motion.article>
             ))}
@@ -315,6 +344,7 @@ const LandingPage = () => {
             {pricing.map((plan) => (
               <motion.article key={plan.name} className={`landing-pricing-card landing-hover-card${plan.featured ? ' is-featured' : ''}`} variants={fadeInUp}>
                 <div>
+                  <span className="landing-card-kicker">{plan.badge}</span>
                   <h3>{plan.name}</h3>
                   <p className="landing-pricing-price">{plan.price}<span>/mês</span></p>
                   <p className="landing-pricing-copy">{plan.description}</p>
@@ -327,6 +357,7 @@ const LandingPage = () => {
                     </div>
                   ))}
                 </div>
+                <p className="landing-pricing-note">{plan.note}</p>
                 <Link className={plan.featured ? 'landing-primary-button' : 'landing-secondary-button'} to={plan.to}>{plan.cta}</Link>
               </motion.article>
             ))}
@@ -353,7 +384,7 @@ const LandingPage = () => {
           <div className="landing-final-cta-card">
             <motion.div variants={fadeInUp}><SectionBadge label="Começar agora" /></motion.div>
             <motion.h2 className="landing-section-title" variants={fadeInUp}>Uma landing page realmente alinhada ao spec precisa terminar com um fechamento <span className="landing-gradient-text">forte</span>.</motion.h2>
-            <motion.p className="landing-final-copy" variants={fadeInUp}>Insira seu e-mail para começar o cadastro no mesmo fluxo visual. Se preferir, também é possível entrar ou recuperar o acesso sem quebrar a coerência da experiência.</motion.p>
+            <motion.p className="landing-final-copy" variants={fadeInUp}>Insira seu e-mail para continuar no fluxo principal com menos atrito. Se o seu objetivo for apenas entrar ou recuperar acesso, os atalhos continuam no mesmo sistema visual.</motion.p>
             <form className="landing-cta-form" onSubmit={handleCtaSubmit}>
               <label className="sr-only" htmlFor="landing-cta-email">E-mail para começar o cadastro</label>
               <input
@@ -365,9 +396,25 @@ const LandingPage = () => {
                 placeholder="voce@exemplo.com"
                 inputMode="email"
                 autoComplete="email"
+                disabled={Boolean(token)}
               />
-              <button className="landing-primary-button landing-cta-button" type="submit">Começar cadastro</button>
+              <button className="landing-primary-button landing-cta-button" type="submit">{ctaPrimaryLabel}</button>
             </form>
+            <motion.p className="landing-cta-helper" variants={fadeInUp}><strong>Próximo passo:</strong> {ctaHelper}</motion.p>
+            <motion.div className="landing-cta-quick-actions" variants={fadeInUp}>
+              <Link className="landing-cta-chip" to={token ? '/app' : '/login'}>
+                <span className="material-symbols-outlined">login</span>
+                <span>{token ? 'Ir para o app' : 'Já tenho conta'}</span>
+              </Link>
+              <Link className="landing-cta-chip" to="/register">
+                <span className="material-symbols-outlined">person_add</span>
+                <span>Criar conta do zero</span>
+              </Link>
+              <Link className="landing-cta-chip" to="/forgot-password">
+                <span className="material-symbols-outlined">lock_reset</span>
+                <span>Recuperar acesso</span>
+              </Link>
+            </motion.div>
             <motion.div className="landing-hero-actions" variants={fadeInUp}>
               <Link className="landing-primary-button" to="/login">Entrar</Link>
               <Link className="landing-secondary-button" to="/forgot-password">Recuperar senha</Link>
@@ -375,6 +422,19 @@ const LandingPage = () => {
           </div>
         </motion.section>
       </main>
+
+      <footer className="landing-footer">
+        <div className="landing-footer-brand">
+          <span className="landing-footer-mark">SF</span>
+          <span className="landing-footer-name">StudyFlow AI</span>
+        </div>
+        <span className="landing-footer-copy">&copy; {new Date().getFullYear()} StudyFlow AI. Todos os direitos reservados.</span>
+        <nav className="landing-footer-links" aria-label="Links do rodapé">
+          <Link to="/login">Login</Link>
+          <Link to="/register">Cadastro</Link>
+          <Link to="/forgot-password">Recuperar senha</Link>
+        </nav>
+      </footer>
     </div>
   );
 };
