@@ -8,6 +8,7 @@ import routes from '../apps/backend/src/routes/index';
 import { errorHandler } from '../apps/backend/src/middleware/errorHandler';
 import { connectDatabase, sequelize } from '../apps/backend/src/config/database';
 import '../apps/backend/src/models/index';
+import { runMigrationsAndSeed } from '../apps/backend/src/config/migrations';
 
 const app = express();
 
@@ -46,7 +47,7 @@ const ensureDb = () => {
   if (!dbReady) {
     dbReady = (async () => {
       await connectDatabase();
-      await sequelize.sync();
+      await runMigrationsAndSeed();
     })();
   }
   return dbReady;
