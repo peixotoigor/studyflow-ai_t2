@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import api from '../api/client';
 
 interface Message {
     id: string;
@@ -11,18 +12,25 @@ interface AiTutorChatProps {
     onClose: () => void;
     subject: string;
     topic: string;
-    apiKey?: string;
-    model?: string;
+    isPremium: boolean;
     onSaveNote?: (content: string, subject: string, topic: string) => void;
 }
 
-export const AiTutorChat: React.FC<AiTutorChatProps> = ({ isOpen, onClose, subject, topic, apiKey, model = 'gpt-4o-mini', onSaveNote }) => {
+export const AiTutorChat: React.FC<AiTutorChatProps> = ({ isOpen, onClose, subject, topic, isPremium, onSaveNote }) => {
     const [messages, setMessages] = useState<Message[]>([
         { id: 'welcome', role: 'assistant', text: `Tutor Ativo. Mande sua dúvida sobre ${subject} (Tópico: ${topic}). Serei direto.` }
     ]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    // Reset messages when topic changes
+    useEffect(() => {
+        setMessages([
+            { id: 'welcome', role: 'assistant', text: `Tutor Ativo. Mande sua dúvida sobre ${subject} (Tópico: ${topic}). Serei direto.` }
+        ]);
+        setInput('');
+    }, [subject, topic]);
 
     // Auto-scroll to bottom
     useEffect(() => {
@@ -35,12 +43,7 @@ export const AiTutorChat: React.FC<AiTutorChatProps> = ({ isOpen, onClose, subje
     }, [messages, isOpen]);
 
     const handleSend = async () => {
-        if (!input.trim()) return;
-        
-        if (!apiKey) {
-            setMessages(prev => [...prev, { id: Date.now().toString(), role: 'assistant', text: "Por favor, configure sua OpenAI API Key no perfil para usar o tutor." }]);
-            return;
-        }
+        if (!input.trim() || !isPremium) return;
 
         const userMsg: Message = { id: Date.now().toString(), role: 'user', text: input };
         setMessages(prev => [...prev, userMsg]);
@@ -48,70 +51,29 @@ export const AiTutorChat: React.FC<AiTutorChatProps> = ({ isOpen, onClose, subje
         setInput('');
         setIsLoading(true);
 
-        const cleanApiKey = apiKey.trim().replace(/[^\x00-\x7F]/g, "");
-
         try {
-            // PROMPT OTIMIZADO PARA CONCURSEIROS (TIRO CURTO)
-            const systemInstruction = `
-                ATUAÇÃO: Você é um Mentor de Elite para Concursos Públicos.
-                CONTEXTO: O aluno está em uma sessão de estudo focado (tempo cronometrado). Ele precisa de respostas imediatas.
-                
-                DISCIPLINA: "${subject}"
-                TÓPICO: "${topic}"
-
-                REGRAS RÍGIDAS DE RESPOSTA:
-                1. SEJA CIRÚRGICO: Vá direto à resposta. PROIBIDO usar saudações ("Olá", "Tudo bem"), frases de apoio ("Ótima pergunta") ou introduções longas.
-                2. FOCO NA PROVA: Explique o conceito focando em como as bancas cobram.
-                3. PEGADINHAS: Se houver uma "pegadinha" clássica sobre o tema, alerte imediatamente com o emoji ⚠️.
-                4. LEI SECA: Se for jurídico, cite o Artigo/Lei.
-                5. MNEMÔNICOS: Se houver macete para decorar, entregue-o.
-                6. FORMATAÇÃO: Use Bullet Points e NEGRITO nas palavras-chave para leitura dinâmica.
-                7. TAMANHO: Mantenha a resposta curta (máximo de 3 parágrafos curtos ou listas).
-
-                Exemplo de tom desejado:
-                "A diferença é X.
-                - **Conceito A**: Aplica-se em Y (Art. 5º).
-                - **Conceito B**: Aplica-se em Z.
-                ⚠️ Cuidado: A banca FGV costuma trocar os prazos."
-            `;
-
-            // Preparar histórico para OpenAI
-            const apiMessages = [
-                { role: "system", content: systemInstruction },
-                ...messages.map(m => ({
-                    role: m.role === 'assistant' || m.role === 'user' ? m.role : 'system',
+            // Map messages to the structure expected by the backend
+            const payloadMessages = messages
+                .filter(m => m.id !== 'welcome') // Skip client-side welcome message to save tokens
+                .map(m => ({
+                    role: m.role,
                     content: m.text
-                })),
-                { role: "user", content: currentInput }
-            ];
+                }))
+                .concat({ role: 'user', content: currentInput });
 
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${cleanApiKey}`
-                },
-                body: JSON.stringify({
-                    model: model,
-                    messages: apiMessages,
-                    temperature: 0.5, // Temperatura menor para ser mais factual e menos criativo
-                    max_tokens: 300 // Limita o tamanho da resposta para garantir brevidade
-                })
+            const response = await api.post('/ai/chat', {
+                messages: payloadMessages,
+                subject,
+                topic
             });
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error?.message || "Erro na API da OpenAI");
-            }
-
-            const data = await response.json();
-            const text = data.choices[0].message.content || "Não consegui formular uma resposta.";
-            
+            const text = response.data.content || "Não consegui formular uma resposta.";
             setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: 'assistant', text }]);
 
         } catch (error: any) {
             console.error("Erro no Tutor IA:", error);
-            setMessages(prev => [...prev, { id: Date.now().toString(), role: 'assistant', text: `Erro: ${error.message}. Verifique sua chave de API.` }]);
+            const errMsg = error.response?.data?.message || error.message || "Erro de conexão com o servidor.";
+            setMessages(prev => [...prev, { id: Date.now().toString(), role: 'assistant', text: `Erro: ${errMsg}` }]);
         } finally {
             setIsLoading(false);
         }
@@ -144,68 +106,85 @@ export const AiTutorChat: React.FC<AiTutorChatProps> = ({ isOpen, onClose, subje
                 </button>
             </div>
 
-            {/* Messages Area */}
-            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 bg-background-light dark:bg-background-dark/50">
-                {messages.map((msg) => (
-                    <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[90%] rounded-2xl p-3 text-sm shadow-sm group relative ${
-                            msg.role === 'user' 
-                                ? 'bg-primary text-white rounded-br-none' 
-                                : 'bg-white dark:bg-[#1e1e2d] text-text-primary-light dark:text-text-primary-dark border border-border-light dark:border-border-dark rounded-bl-none pr-8'
-                        }`}>
-                            <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
-                            
-                            {/* Save Button for Assistant Messages */}
-                            {msg.role === 'assistant' && onSaveNote && (
-                                <button 
-                                    onClick={() => onSaveNote(msg.text, subject, topic)}
-                                    className="absolute -right-2 -bottom-2 bg-amber-100 dark:bg-amber-900 text-amber-600 dark:text-amber-400 p-1.5 rounded-full shadow-sm hover:scale-110 transition-transform opacity-0 group-hover:opacity-100"
-                                    title="Salvar Insight"
-                                >
-                                    <span className="material-symbols-outlined text-[16px]">bookmark_add</span>
-                                </button>
-                            )}
-                        </div>
+            {isPremium ? (
+                <>
+                    {/* Messages Area */}
+                    <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 bg-background-light dark:bg-background-dark/50">
+                        {messages.map((msg) => (
+                            <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                <div className={`max-w-[90%] rounded-2xl p-3 text-sm shadow-sm group relative ${
+                                    msg.role === 'user' 
+                                        ? 'bg-primary text-white rounded-br-none' 
+                                        : 'bg-white dark:bg-[#1e1e2d] text-text-primary-light dark:text-text-primary-dark border border-border-light dark:border-border-dark rounded-bl-none pr-8'
+                                }`}>
+                                    <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                                    
+                                    {/* Save Button for Assistant Messages */}
+                                    {msg.role === 'assistant' && onSaveNote && (
+                                        <button 
+                                            onClick={() => onSaveNote(msg.text, subject, topic)}
+                                            className="absolute -right-2 -bottom-2 bg-amber-100 dark:bg-amber-900 text-amber-600 dark:text-amber-400 p-1.5 rounded-full shadow-sm hover:scale-110 transition-transform opacity-0 group-hover:opacity-100 animate-fade-in"
+                                            title="Salvar Insight"
+                                        >
+                                            <span className="material-symbols-outlined text-[16px]">bookmark_add</span>
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                        {isLoading && (
+                            <div className="flex justify-start">
+                                <div className="bg-white dark:bg-[#1e1e2d] border border-border-light dark:border-border-dark rounded-2xl rounded-bl-none p-4 flex items-center gap-2">
+                                    <span className="w-2 h-2 bg-primary/50 rounded-full animate-bounce"></span>
+                                    <span className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></span>
+                                    <span className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{animationDelay: '0.4s'}}></span>
+                                </div>
+                            </div>
+                        )}
                     </div>
-                ))}
-                {isLoading && (
-                    <div className="flex justify-start">
-                        <div className="bg-white dark:bg-[#1e1e2d] border border-border-light dark:border-border-dark rounded-2xl rounded-bl-none p-4 flex items-center gap-2">
-                            <span className="w-2 h-2 bg-primary/50 rounded-full animate-bounce"></span>
-                            <span className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></span>
-                            <span className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{animationDelay: '0.4s'}}></span>
-                        </div>
-                    </div>
-                )}
-            </div>
 
-            {/* Input Area */}
-            <div className="p-4 bg-white dark:bg-[#15152a] border-t border-border-light dark:border-border-dark">
-                <div className="flex gap-2 items-end bg-background-light dark:bg-background-dark/50 p-2 rounded-xl border border-border-light dark:border-border-dark focus-within:ring-2 focus-within:ring-primary/20 transition-all">
-                    <textarea 
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder="Dúvida rápida (ex: prazo recurso ordinário)..."
-                        className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-text-primary-light dark:text-white resize-none max-h-32 min-h-[44px] py-3"
-                        rows={1}
-                    />
-                    <button 
-                        onClick={handleSend}
-                        disabled={isLoading || !input.trim()}
-                        className={`p-2.5 rounded-lg mb-0.5 transition-all ${
-                            input.trim() 
-                                ? 'bg-primary text-white shadow-md hover:bg-blue-600 active:scale-95' 
-                                : 'bg-gray-200 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
-                        }`}
-                    >
-                        <span className="material-symbols-outlined text-[20px] fill">send</span>
-                    </button>
+                    {/* Input Area */}
+                    <div className="p-4 bg-white dark:bg-[#15152a] border-t border-border-light dark:border-border-dark">
+                        <div className="flex gap-2 items-end bg-background-light dark:bg-background-dark/50 p-2 rounded-xl border border-border-light dark:border-border-dark focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+                            <textarea 
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                placeholder="Dúvida rápida (ex: prazo recurso ordinário)..."
+                                className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-text-primary-light dark:text-white resize-none max-h-32 min-h-[44px] py-3 focus:outline-none"
+                                rows={1}
+                            />
+                            <button 
+                                onClick={handleSend}
+                                disabled={isLoading || !input.trim()}
+                                className={`p-2.5 rounded-lg mb-0.5 transition-all ${
+                                    input.trim() 
+                                        ? 'bg-primary text-white shadow-md hover:bg-blue-600 active:scale-95' 
+                                        : 'bg-gray-200 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
+                                }`}
+                            >
+                                <span className="material-symbols-outlined text-[20px] fill">send</span>
+                            </button>
+                        </div>
+                        <p className="text-[10px] text-center text-text-secondary-light dark:text-text-secondary-dark mt-2">
+                            IA centralizada StudyFlow. Verifique dados críticos.
+                        </p>
+                    </div>
+                </>
+            ) : (
+                <div className="flex-1 flex flex-col items-center justify-center p-8 bg-gradient-to-b from-white to-primary/5 dark:from-[#15152a] dark:to-primary/10 text-center">
+                    <div className="w-16 h-16 bg-amber-500/10 text-amber-500 rounded-full flex items-center justify-center mb-6 animate-pulse">
+                        <span className="material-symbols-outlined text-[36px]">lock</span>
+                    </div>
+                    <h4 className="text-lg font-bold text-text-primary-light dark:text-white mb-2">Tutor IA Premium 🔒</h4>
+                    <p className="text-sm text-text-secondary-light dark:text-text-secondary-dark mb-6 max-w-[280px]">
+                        Tire dúvidas em tempo real de forma cirúrgica. Assine o plano Premium para desbloquear o Tutor com IA.
+                    </p>
+                    <div className="text-xs text-text-secondary-light dark:text-text-secondary-dark bg-white dark:bg-[#1e1e2d] border border-border-light dark:border-border-dark p-3 rounded-lg max-w-[280px]">
+                        Você pode assinar o Premium ou gerenciar sua conta na aba <strong>Perfil</strong>.
+                    </div>
                 </div>
-                <p className="text-[10px] text-center text-text-secondary-light dark:text-text-secondary-dark mt-2">
-                    IA focada em Concursos. Verifique dados críticos.
-                </p>
-            </div>
+            )}
         </div>
     );
 };

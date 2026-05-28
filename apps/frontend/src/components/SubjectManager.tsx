@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Subject, Topic, StudyLog, getSubjectIcon, StudyPlan } from '../types';
+import api from '../api/client';
 
 interface SubjectManagerProps {
     subjects?: Subject[];
@@ -21,8 +22,7 @@ interface SubjectManagerProps {
     onDeleteLog?: (subjectId: string, logId: string) => void;
     onToggleTopicCompletion?: (subjectId: string, topicId: string) => void; 
     onRestoreSubjects?: (subjects: Subject[]) => void;
-    apiKey?: string;
-    model?: string;
+    isPremium?: boolean;
 }
 
 const AVAILABLE_COLORS = [
@@ -48,8 +48,7 @@ export const SubjectManager: React.FC<SubjectManagerProps> = ({
     onDeleteLog,
     onToggleTopicCompletion,
     onRestoreSubjects,
-    apiKey,
-    model = 'gpt-4o-mini'
+    isPremium = false
 }) => {
     const [expandedSubjectId, setExpandedSubjectId] = useState<string | null>(() => {
         try {
@@ -345,42 +344,35 @@ export const SubjectManager: React.FC<SubjectManagerProps> = ({
     };
 
     const handleAiProcess = async () => {
-        if (!apiKey) {
-            alert("Erro: Configure sua chave de API (OpenAI) no perfil.");
+        if (!isPremium) {
+            alert("Recurso exclusivo para assinantes Premium. Assine o plano Premium no Perfil.");
             return;
         }
         if (!rawSyllabusText.trim() || !aiTargetSubjectId || !onAddTopic) return;
 
-        const cleanApiKey = apiKey.trim().replace(/[^\x00-\x7F]/g, "");
         setIsAiProcessing(true);
 
         try {
-            const prompt = `Converta este edital em tópicos JSON: { "topics": ["Tópico 1", "Tópico 2"] }. Mantenha a numeração original.`;
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cleanApiKey}` },
-                body: JSON.stringify({
-                    model: model,
-                    messages: [{ role: "system", content: "Extractor JSON." }, { role: "user", content: prompt + "\n\n" + rawSyllabusText }],
-                    response_format: { type: "json_object" },
-                    temperature: 0.1
-                })
+            const response = await api.post('/ai/generate-topics', {
+                syllabusText: rawSyllabusText
             });
 
-            if (!response.ok) throw new Error(`API Error: ${response.status}`);
-            const data = await response.json();
-            const content = JSON.parse(data.choices[0].message.content);
-
+            const content = response.data;
             if (content.topics && Array.isArray(content.topics)) {
                 content.topics.forEach((topicName: string) => onAddTopic(aiTargetSubjectId, topicName));
                 setAiImportModalOpen(false);
                 setRawSyllabusText('');
                 alert(`${content.topics.length} tópicos adicionados!`);
-            } else { throw new Error("JSON inválido."); }
+            } else { 
+                throw new Error("JSON de tópicos retornado inválido."); 
+            }
         } catch (error: any) {
             console.error(error);
-            alert(`Falha: ${error.message}`);
-        } finally { setIsAiProcessing(false); }
+            const errMsg = error.response?.data?.message || error.message || "Erro ao processar com IA.";
+            alert(`Falha: ${errMsg}`);
+        } finally { 
+            setIsAiProcessing(false); 
+        }
     };
 
     // --- Drag Handlers ---
@@ -444,7 +436,10 @@ export const SubjectManager: React.FC<SubjectManagerProps> = ({
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            <button onClick={(e) => openAiModalForSubject(e, subject.id)} className="px-3 py-1.5 text-xs font-medium bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 hover:bg-purple-100 rounded-md flex items-center gap-1 transition-colors"><span className="material-symbols-outlined text-[16px]">auto_fix</span> IA</button>
+                            <button onClick={(e) => openAiModalForSubject(e, subject.id)} className="px-3 py-1.5 text-xs font-medium bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 hover:bg-purple-100 rounded-md flex items-center gap-1 transition-colors">
+                                <span className="material-symbols-outlined text-[16px]">auto_fix</span> 
+                                IA {!isPremium && <span className="text-[10px]">🔒</span>}
+                            </button>
                             <button onClick={(e) => openEditSubjectModal(e, subject)} className="px-3 py-1.5 text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-blue-100 rounded-md flex items-center gap-1 transition-colors"><span className="material-symbols-outlined text-[16px]">edit</span> Editar</button>
                             <button onClick={() => toggleExpand(subject.id)} className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"><span className="material-symbols-outlined text-[18px]">grid_view</span> Voltar</button>
                         </div>
@@ -613,7 +608,10 @@ export const SubjectManager: React.FC<SubjectManagerProps> = ({
                                                     </div>
                                                     <div className="absolute top-2 right-2 flex gap-1">
                                                         {!isArchived && (
-                                                            <button onClick={(e) => openAiModalForSubject(e, subject.id)} className="p-1 rounded bg-white/80 dark:bg-black/50 hover:bg-purple-100 dark:hover:bg-purple-900 text-slate-500 hover:text-purple-600 transition-colors shadow-sm opacity-0 group-hover:opacity-100" title="IA"><span className="material-symbols-outlined text-[16px]">auto_fix</span></button>
+                                                            <button onClick={(e) => openAiModalForSubject(e, subject.id)} className="p-1 rounded bg-white/80 dark:bg-black/50 hover:bg-purple-100 dark:hover:bg-purple-900 text-slate-500 hover:text-purple-600 transition-colors shadow-sm opacity-0 group-hover:opacity-100 relative" title="IA">
+                                                                <span className="material-symbols-outlined text-[16px]">auto_fix</span>
+                                                                {!isPremium && <span className="absolute -top-1 -right-1 text-[8px] bg-red-500 text-white rounded-full px-0.5">🔒</span>}
+                                                            </button>
                                                         )}
                                                         <button onClick={(e) => openEditSubjectModal(e, subject)} className="p-1 rounded bg-white/80 dark:bg-black/50 hover:bg-blue-100 dark:hover:bg-blue-900 text-slate-500 hover:text-blue-600 transition-colors shadow-sm opacity-0 group-hover:opacity-100" title="Editar"><span className="material-symbols-outlined text-[16px]">edit</span></button>
                                                     </div>
@@ -657,7 +655,10 @@ export const SubjectManager: React.FC<SubjectManagerProps> = ({
                                                         )}
                                                         <div className="flex gap-1">
                                                             {!isArchived && (
-                                                                <button onClick={(e) => openAiModalForSubject(e, subject.id)} className="p-1.5 rounded hover:bg-purple-100 dark:hover:bg-purple-900 text-slate-400 hover:text-purple-600 transition-colors" title="Processar com IA"><span className="material-symbols-outlined text-[18px]">auto_fix</span></button>
+                                                                <button onClick={(e) => openAiModalForSubject(e, subject.id)} className="p-1.5 rounded hover:bg-purple-100 dark:hover:bg-purple-900 text-slate-400 hover:text-purple-600 transition-colors relative" title="Processar com IA">
+                                                                    <span className="material-symbols-outlined text-[18px]">auto_fix</span>
+                                                                    {!isPremium && <span className="absolute -top-1 -right-1 text-[10px]">🔒</span>}
+                                                                </button>
                                                             )}
                                                             <button onClick={(e) => openEditSubjectModal(e, subject)} className="p-1.5 rounded hover:bg-blue-100 dark:hover:bg-blue-900 text-slate-400 hover:text-blue-600 transition-colors" title="Editar propriedades"><span className="material-symbols-outlined text-[18px]">edit</span></button>
                                                         </div>

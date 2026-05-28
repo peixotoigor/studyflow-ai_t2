@@ -41,8 +41,8 @@ export interface UserProfile {
   name: string;
   email: string;
   avatarUrl: string | null;
-  openAiApiKey?: string;
-  openAiModel?: string;
+  subscriptionStatus?: 'free' | 'premium' | 'cancelled';
+  premiumExpiresAt?: string | null;
   dailyAvailableTimeMinutes?: number;
   githubToken?: string;
   backupGistId?: string;

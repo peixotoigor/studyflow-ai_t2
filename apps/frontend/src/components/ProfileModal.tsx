@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useUpdateUserSettings, useUpdateProfile } from '../hooks/useUser';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../contexts/ThemeContext';
+import api from '../api/client';
 
 interface DriveBackupProps {
     onConnect: () => void;
@@ -45,17 +46,15 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ user, isOpen, onClos
     const [email, setEmail] = useState(user.email);
     const [avatarUrl, setAvatarUrl] = useState<string | null>(user.avatarUrl);
     
-    // AI Config State
-    const [apiKeyInput, setApiKeyInput] = useState('');
-    const [hasSavedApiKey, setHasSavedApiKey] = useState(false);
-    const [model, setModel] = useState(user.openAiModel || 'gpt-4o-mini');
-    const [showApiKey, setShowApiKey] = useState(false);
+    // Drive Backup state mirrors props for UI feedback
+    const [paymentLoading, setPaymentLoading] = useState(false);
+    const [aiUsage, setAiUsage] = useState<{ requestCount: number; tokenCount: number; dailyLimit: number; tokenLimit: number } | null>(null);
+    const [showGithubToken, setShowGithubToken] = useState(false);
 
     // GitHub Sync State
     const [githubTokenInput, setGithubTokenInput] = useState('');
     const [hasSavedGithubToken, setHasSavedGithubToken] = useState(false);
     const [backupGistId, setBackupGistId] = useState(user.backupGistId || '');
-    const [showGithubToken, setShowGithubToken] = useState(false);
     const [syncStatus, setSyncStatus] = useState<string>('');
     const [isSyncing, setIsSyncing] = useState(false);
     const [lastBackupDate, setLastBackupDate] = useState<string | null>(null);
@@ -100,15 +99,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ user, isOpen, onClos
             setEmail(user.email);
             setAvatarUrl(user.avatarUrl);
             
-            setHasSavedApiKey(!!user.openAiApiKey && user.openAiApiKey.length > 5);
-            setApiKeyInput(''); 
-            
             setHasSavedGithubToken(!!user.githubToken && user.githubToken.length > 5);
             setGithubTokenInput('');
 
-            setModel(user.openAiModel || 'gpt-4o-mini');
             setBackupGistId(user.backupGistId || '');
-            setShowApiKey(false);
             setShowGithubToken(false);
             setSyncStatus('');
             setTempImage(null); 
@@ -119,6 +113,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ user, isOpen, onClos
             setNewPassword('');
             setConfirmPassword('');
             setPasswordStatus('');
+            setAiUsage(null);
             
             try {
                 const savedDate = localStorage.getItem('studyflow_last_backup_date');
@@ -190,7 +185,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ user, isOpen, onClos
 
     // --- SAVE LOGIC ---
     const handleSave = async () => {
-        const finalApiKey = apiKeyInput.trim() ? apiKeyInput.trim().replace(/[^\x00-\x7F]/g, "") : user.openAiApiKey;
         const finalGithubToken = githubTokenInput.trim() ? githubTokenInput.trim().replace(/[^\x00-\x7F]/g, "") : user.githubToken;
         const trimmedName = name.trim();
 
@@ -199,13 +193,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ user, isOpen, onClos
             name: trimmedName || user.name,
             email: user.email, // email é alterado apenas pelo fluxo dedicado
             avatarUrl,
-            openAiApiKey: finalApiKey,
-            openAiModel: model,
             githubToken: finalGithubToken,
             backupGistId
         };
 
-        // Agora a criptografia é delegada exclusivamente ao Backend (UserSettings API).
         onSave(updatedUser);
         onClose();
     };
@@ -379,6 +370,46 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ user, isOpen, onClos
         }
     };
 
+    // --- STRIPE PAYMENTS HANDLERS ---
+    const handleSubscribe = async () => {
+        setPaymentLoading(true);
+        try {
+            const res = await api.post('/payments/create-checkout');
+            if (res.data.url) {
+                window.location.href = res.data.url;
+            }
+        } catch (err: any) {
+            const errMsg = err.response?.data?.message || err.message || "Erro ao iniciar pagamento.";
+            alert(`Erro: ${errMsg}`);
+        } finally {
+            setPaymentLoading(false);
+        }
+    };
+
+    const handleManageSubscription = async () => {
+        setPaymentLoading(true);
+        try {
+            const res = await api.post('/payments/portal');
+            if (res.data.url) {
+                window.location.href = res.data.url;
+            }
+        } catch (err: any) {
+            const errMsg = err.response?.data?.message || err.message || "Erro ao abrir portal de assinatura.";
+            alert(`Erro: ${errMsg}`);
+        } finally {
+            setPaymentLoading(false);
+        }
+    };
+
+    // Load AI usage when on Keys / Subscription tab
+    useEffect(() => {
+        if (isOpen && activeTab === 'KEYS' && user.subscriptionStatus === 'premium') {
+            api.get('/ai/usage')
+                .then(res => setAiUsage(res.data))
+                .catch(err => console.error("Erro ao obter uso de IA:", err));
+        }
+    }, [isOpen, activeTab, user]);
+
     const getInitials = (fullName: string) => {
         const names = fullName.split(' ');
         if (names.length >= 2) return `${names[0][0]}${names[1][0]}`.toUpperCase();
@@ -399,7 +430,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ user, isOpen, onClos
                     {!tempImage && (
                         <div className="flex border-b border-gray-100 dark:border-gray-800 px-6">
                             <button onClick={() => setActiveTab('PROFILE')} className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors ${activeTab === 'PROFILE' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>Perfil</button>
-                            <button onClick={() => setActiveTab('KEYS')} className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors ${activeTab === 'KEYS' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>Chaves & API</button>
+                            <button onClick={() => setActiveTab('KEYS')} className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors ${activeTab === 'KEYS' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>Assinatura & IA</button>
                             {driveBackup && (
                                 <button onClick={() => setActiveTab('BACKUP')} className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors ${activeTab === 'BACKUP' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>Backups</button>
                             )}
@@ -504,49 +535,102 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ user, isOpen, onClos
 
                                 {activeTab === 'KEYS' && (
                                     <div className="flex flex-col gap-6 animate-in fade-in">
-                                        <div className="flex flex-col gap-4">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="material-symbols-outlined text-primary text-xl">smart_toy</span>
-                                                <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide">Configurações de IA</h3>
-                                            </div>
-                                            <div className="flex flex-col gap-1.5">
-                                                <div className="flex justify-between items-center">
-                                                    <label className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">OpenAI API Key</label>
-                                                    {hasSavedApiKey && <span className="text-[10px] bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full font-bold flex items-center gap-1"><span className="material-symbols-outlined text-[12px]">check_circle</span> Salvo</span>}
+                                        <div className="flex flex-col gap-4 bg-slate-50 dark:bg-[#1a1a35] p-4 rounded-xl border border-gray-200 dark:border-gray-800">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="material-symbols-outlined text-primary text-xl">workspace_premium</span>
+                                                    <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide">Plano Atual</h3>
                                                 </div>
-                                                <div className="relative">
-                                                    <input type={showApiKey ? "text" : "password"} value={apiKeyInput} onChange={(e) => setApiKeyInput(e.target.value)} className={`w-full pl-4 pr-10 py-2.5 rounded-lg border text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary/50 outline-none transition-all font-mono text-sm ${hasSavedApiKey && !apiKeyInput ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800 placeholder-green-700 dark:placeholder-green-400' : 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700'}`} placeholder={hasSavedApiKey ? "••••••••••••••••••••" : "sk-..."} autoComplete="off" />
-                                                    <button type="button" onClick={() => setShowApiKey(!showApiKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 focus:outline-none"><span className="material-symbols-outlined text-[20px]">{showApiKey ? 'visibility_off' : 'visibility'}</span></button>
-                                                </div>
+                                                <span className={`text-[10px] font-black px-2.5 py-1 rounded-full ${
+                                                    user.subscriptionStatus === 'premium' 
+                                                        ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200/50' 
+                                                        : 'bg-gray-100 dark:bg-gray-800 text-gray-500 border border-gray-200 dark:border-gray-700'
+                                                }`}>
+                                                    {user.subscriptionStatus === 'premium' ? '👑 PREMIUM' : 'FREE'}
+                                                </span>
                                             </div>
-                                            <div className="flex flex-col gap-1.5">
-                                                <label className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Modelo GPT</label>
-                                                <div className="relative">
-                                                    <select value={model} onChange={(e) => setModel(e.target.value)} className="w-full appearance-none pl-4 pr-10 py-2.5 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary/50 outline-none transition-all cursor-pointer">
-                                                        {AI_MODELS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
-                                                    </select>
-                                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"><span className="material-symbols-outlined">expand_more</span></span>
-                                                </div>
-                                            </div>
-                                            
-                                            <div className="flex flex-col gap-1.5 pt-2">
-                                                <div className="flex justify-between items-center bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-                                                    <div className="flex flex-col">
-                                                        <span className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                                            <span className="material-symbols-outlined text-[18px]">
-                                                                {theme === 'dark' ? 'dark_mode' : 'light_mode'}
-                                                            </span>
-                                                            Modo Escuro (Night Mode)
-                                                        </span>
-                                                        <span className="text-xs text-gray-500 dark:text-gray-400">Alternar aparência do sistema</span>
-                                                    </div>
+
+                                            <p className="text-xs text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">
+                                                {user.subscriptionStatus === 'premium' 
+                                                    ? 'Você possui acesso completo à inteligência artificial do StudyFlow com OpenRouter.' 
+                                                    : 'O plano gratuito tem recursos de IA limitados. Assine o plano Premium para liberar o Tutor IA, importador e radar inteligente.'}
+                                            </p>
+
+                                            {user.subscriptionStatus === 'premium' && user.premiumExpiresAt && (
+                                                <p className="text-[11px] text-gray-500 mt-1">
+                                                    Assinatura ativa até: <strong>{new Date(user.premiumExpiresAt).toLocaleDateString()}</strong>
+                                                </p>
+                                            )}
+
+                                            <div className="mt-2">
+                                                {user.subscriptionStatus === 'premium' ? (
                                                     <button 
-                                                        onClick={toggleTheme}
-                                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${theme === 'dark' ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'}`}
+                                                        onClick={handleManageSubscription} 
+                                                        disabled={paymentLoading}
+                                                        className="w-full py-2 bg-gray-800 dark:bg-white text-white dark:text-gray-900 rounded-lg font-bold text-xs hover:opacity-90 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
                                                     >
-                                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${theme === 'dark' ? 'translate-x-6' : 'translate-x-1'}`} />
+                                                        <span className="material-symbols-outlined text-sm">settings</span>
+                                                        Gerenciar Assinatura
                                                     </button>
+                                                ) : (
+                                                    <button 
+                                                        onClick={handleSubscribe} 
+                                                        disabled={paymentLoading}
+                                                        className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-lg font-bold text-xs hover:shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 shadow-md shadow-amber-500/10"
+                                                    >
+                                                        <span className="material-symbols-outlined text-sm">workspace_premium</span>
+                                                        Assinar Premium
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {user.subscriptionStatus === 'premium' && (
+                                            <div className="flex flex-col gap-4 p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-card-dark/60">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="material-symbols-outlined text-primary text-xl">query_stats</span>
+                                                    <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide">Consumo de IA Hoje</h3>
                                                 </div>
+                                                
+                                                {aiUsage ? (
+                                                    <div className="flex flex-col gap-3">
+                                                        <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
+                                                            <span>Requisições realizadas</span>
+                                                            <span className="font-bold">{aiUsage.requestCount} / {aiUsage.dailyLimit}</span>
+                                                        </div>
+                                                        <div className="w-full bg-gray-100 dark:bg-gray-800 h-2 rounded-full overflow-hidden">
+                                                            <div 
+                                                                className="bg-primary h-full rounded-full transition-all" 
+                                                                style={{ width: `${Math.min(100, (aiUsage.requestCount / aiUsage.dailyLimit) * 100)}%` }}
+                                                            />
+                                                        </div>
+                                                        <p className="text-[10px] text-gray-500 italic mt-1">
+                                                            As cotas são renovadas diariamente à meia-noite.
+                                                        </p>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-xs text-slate-500 italic">Carregando métricas de uso...</p>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        <div className="flex flex-col gap-4">
+                                            <div className="flex justify-between items-center bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                                        <span className="material-symbols-outlined text-[18px]">
+                                                            {theme === 'dark' ? 'dark_mode' : 'light_mode'}
+                                                        </span>
+                                                        Modo Escuro (Night Mode)
+                                                    </span>
+                                                    <span className="text-xs text-gray-500 dark:text-gray-400">Alternar aparência do sistema</span>
+                                                </div>
+                                                <button 
+                                                    onClick={toggleTheme}
+                                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${theme === 'dark' ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'}`}
+                                                >
+                                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${theme === 'dark' ? 'translate-x-6' : 'translate-x-1'}`} />
+                                                </button>
                                             </div>
                                         </div>
                                         <div className="h-px bg-gray-100 dark:bg-gray-800 w-full"></div>

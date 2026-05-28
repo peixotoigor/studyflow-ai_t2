@@ -16,6 +16,8 @@ const serializeUser = (user: User) => ({
   id: user.id,
   name: user.name,
   email: user.email,
+  subscriptionStatus: user.subscriptionStatus,
+  premiumExpiresAt: user.premiumExpiresAt,
   createdAt: user.createdAt
 });
 

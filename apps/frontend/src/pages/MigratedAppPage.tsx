@@ -191,18 +191,14 @@ const MigratedAppPage = () => {
     return { ...base, ...userData.settings };
   }, [userData]);
 
-  const localOpenAiKey = useMemo(() => loadLocalSecret('openai') || settings.openAiApiKeyDecrypted || null, [settings.openAiApiKeyDecrypted]);
   const localGithubToken = useMemo(() => loadLocalSecret('github') || settings.githubTokenDecrypted || null, [settings.githubTokenDecrypted]);
 
   // Ao receber chaves descriptografadas, salva localmente para uso automático
   useEffect(() => {
-    if (settings.openAiApiKeyDecrypted) {
-      saveLocalSecret('openai', settings.openAiApiKeyDecrypted);
-    }
     if (settings.githubTokenDecrypted) {
       saveLocalSecret('github', settings.githubTokenDecrypted);
     }
-  }, [settings.openAiApiKeyDecrypted, settings.githubTokenDecrypted]);
+  }, [settings.githubTokenDecrypted]);
 
   // Initialize current plan quando plans carregarem
   useEffect(() => {
@@ -487,8 +483,8 @@ const MigratedAppPage = () => {
     name: userData.user.name,
     email: userData.user.email,
     avatarUrl: settings.avatarUrl || null,
-    openAiApiKey: localOpenAiKey || (settings.hasOpenAiApiKey ? '***' : ''),
-    openAiModel: settings.openAiModel || 'gpt-4o-mini',
+    subscriptionStatus: userData.user.subscriptionStatus || 'free',
+    premiumExpiresAt: userData.user.premiumExpiresAt || null,
     dailyAvailableTimeMinutes: settings.dailyAvailableTimeMinutes || 240,
     githubToken: localGithubToken || (settings.hasGithubToken ? '***' : ''),
     backupGistId: settings.backupGistId || ''
@@ -862,15 +858,10 @@ const MigratedAppPage = () => {
 
       await updateUserSettings.mutateAsync({
         dailyAvailableTimeMinutes: updatedUser.dailyAvailableTimeMinutes,
-        openAiModel: updatedUser.openAiModel,
-        openAiApiKey: updatedUser.openAiApiKey === '***' ? undefined : updatedUser.openAiApiKey,
         githubToken: updatedUser.githubToken === '***' ? undefined : updatedUser.githubToken,
         backupGistId: updatedUser.backupGistId || undefined,
         avatarUrl: updatedUser.avatarUrl || null
       });
-      if (updatedUser.openAiApiKey && updatedUser.openAiApiKey !== '***') {
-        saveLocalSecret('openai', updatedUser.openAiApiKey);
-      }
       if (updatedUser.githubToken && updatedUser.githubToken !== '***') {
         saveLocalSecret('github', updatedUser.githubToken);
       }
@@ -922,8 +913,7 @@ const MigratedAppPage = () => {
       case Screen.STUDY_PLAYER:
         return (
           <StudyPlayer
-            apiKey={userProfile.openAiApiKey}
-            model={userProfile.openAiModel}
+            isPremium={userProfile.subscriptionStatus === 'premium'}
             subjects={currentPlanSubjects}
             dailyAvailableTime={userProfile.dailyAvailableTimeMinutes || 240}
             onSessionComplete={handleSessionComplete}
@@ -1146,8 +1136,7 @@ const MigratedAppPage = () => {
                 alert('Erro ao desfazer exclusão. Tente novamente.');
               }
             }}
-            apiKey={userProfile.openAiApiKey}
-            model={userProfile.openAiModel}
+            isPremium={userProfile.subscriptionStatus === 'premium'}
           />
         );
       case Screen.HISTORY:
@@ -1213,8 +1202,7 @@ const MigratedAppPage = () => {
       case Screen.IMPORTER:
         return (
           <Importer
-            apiKey={userProfile.openAiApiKey}
-            model={userProfile.openAiModel}
+            isPremium={userProfile.subscriptionStatus === 'premium'}
             onImport={handleImportSubjects}
             state={importerState}
             setState={setImporterState}

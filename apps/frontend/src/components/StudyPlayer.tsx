@@ -5,8 +5,7 @@ import { Subject, ScheduleItem, Topic, StudyModality, Screen, ErrorLog, ErrorRea
 import { generateMonthlySchedule } from '../utils/scheduler';
 
 interface StudyPlayerProps {
-    apiKey?: string;
-    model?: string;
+    isPremium?: boolean;
     subjects?: Subject[];
     dailyAvailableTime?: number; // minutos
     onSessionComplete?: (subjectId: string, topicId: string, duration: number, questions: number, correct: number, isFinished: boolean, modalities: StudyModality[]) => void;
@@ -36,8 +35,7 @@ interface PersistedPlayerState {
 }
 
 export const StudyPlayer: React.FC<StudyPlayerProps> = ({ 
-    apiKey, 
-    model, 
+    isPremium = false, 
     subjects = [], 
     dailyAvailableTime = 240, 
     onSessionComplete, 
@@ -859,8 +857,7 @@ export const StudyPlayer: React.FC<StudyPlayerProps> = ({
                 onClose={() => setIsChatOpen(false)} 
                 subject={currentItem.subject.name}
                 topic={currentItem.topic?.name || "Geral"}
-                apiKey={apiKey}
-                model={model}
+                isPremium={isPremium}
                 onSaveNote={onSaveNote}
             />
 

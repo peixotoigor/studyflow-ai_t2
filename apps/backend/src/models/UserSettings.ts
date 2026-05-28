@@ -6,7 +6,9 @@ export class UserSettings extends Model<InferAttributes<UserSettings>, InferCrea
   declare id: CreationOptional<string>;
   declare userId: ForeignKey<User['id']>;
   declare dailyAvailableTimeMinutes: CreationOptional<number>;
+  /** @deprecated Kept temporarily for migration compatibility. Use centralized AI instead. */
   declare openAiApiKey: CreationOptional<string | null>;
+  /** @deprecated Kept temporarily for migration compatibility. Use centralized AI instead. */
   declare openAiModel: CreationOptional<string>;
   declare githubToken: CreationOptional<string | null>;
   declare backupGistId: CreationOptional<string | null>;

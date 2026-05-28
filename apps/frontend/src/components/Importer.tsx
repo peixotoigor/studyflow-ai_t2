@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { getDocument, GlobalWorkerOptions, version as pdfjsVersion } from 'pdfjs-dist/legacy/build/pdf';
-import { loadLocalSecret } from '../utils/secrets';
 import { Subject, ImporterState, SyllabusData } from '../types';
+import api from '../api/client';
 
 // Função auxiliar para garantir acesso correto à biblioteca independente do ambiente de build
 const getPdfJs = () => {
@@ -17,15 +17,14 @@ const IMPORT_COLORS = [
 ];
 
 interface ImporterProps {
-    apiKey?: string;
-    model?: string;
+    isPremium?: boolean;
     onImport?: (subjects: Subject[]) => void;
     state: ImporterState;
     setState: React.Dispatch<React.SetStateAction<ImporterState>>;
     editalFiles?: { id: string, fileName: string, dataUrl: string, sizeBytes: number, uploadedAt: Date | string }[];
 }
 
-export const Importer: React.FC<ImporterProps> = ({ apiKey, model = 'gpt-4o-mini', onImport, state, setState, editalFiles = [] }) => {
+export const Importer: React.FC<ImporterProps> = ({ isPremium = false, onImport, state, setState, editalFiles = [] }) => {
     const { step, fileName, processingStatus, progress, syllabus, selectedSubjects } = state;
     
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -48,54 +47,29 @@ export const Importer: React.FC<ImporterProps> = ({ apiKey, model = 'gpt-4o-mini
         
         try {
             const loadingTask = lib.getDocument({ data });
-            
-            // Tratamento específico para Senha e Erros de Carregamento
-            loadingTask.onPassword = (updatePassword: any, reason: any) => {
-                throw new Error("O arquivo PDF está protegido por senha. Por favor, remova a proteção antes de importar.");
-            };
-
             const pdf = await loadingTask.promise;
-            const maxPages = Math.min(pdf.numPages, 100); 
-            let fullText = '';
-
-            // Alocamos 40% do progresso total para a leitura do PDF
-            const PROGRESS_ALLOCATION = 40;
-
-            for (let i = 1; i <= maxPages; i++) {
-                let page = null;
-                // Cálculo granular do progresso baseada na página atual
-                const currentProgress = Math.round((i / maxPages) * PROGRESS_ALLOCATION);
-                
-                setState(prev => ({
-                    ...prev, 
-                    processingStatus: `Lendo página ${i} de ${maxPages}...`,
-                    progress: currentProgress
-                }));
-                
-                try {
-                    page = await pdf.getPage(i);
-                    const textContent = await page.getTextContent();
-                    const pageText = textContent.items.map((item: any) => item.str).join(' ');
-                    fullText += pageText + '\n';
-                } catch (pageError) {
-                    console.warn(`Erro ao ler página ${i}`, pageError);
-                } finally {
-                    if (page) {
-                        try {
-                            page.cleanup();
-                        } catch (e) {
-                            // Ignora erro silêncioso no cleanup
-                        }
-                    }
-                }
-            }
+            console.log(`Carregado PDF com ${pdf.numPages} páginas`);
             
-            // Força a liberação da memória principal do PDF no WebWorker
-            try {
-                if (pdf) await pdf.destroy();
-                if (loadingTask) await loadingTask.destroy();
-            } catch(e) { /* ignore */ }
-
+            let fullText = '';
+            // Limitar processamento a no máximo 100 páginas para evitar estouro de memória
+            const pagesToRead = Math.min(pdf.numPages, 100);
+            
+            for (let i = 1; i <= pagesToRead; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items
+                    .map((item: any) => item.str || '')
+                    .join(' ');
+                fullText += pageText + '\n';
+                
+                // Progresso parcial de leitura (mapeia até 40% do total)
+                const readProgress = Math.round((i / pagesToRead) * 35);
+                setState(prev => ({
+                    ...prev,
+                    processingStatus: `Lendo página ${i}/${pagesToRead}...`,
+                    progress: readProgress
+                }));
+            }
 
             // Verificação de PDF Escaneado (Imagem)
             if (fullText.trim().length < 50 && pdf.numPages > 0) {
@@ -105,28 +79,14 @@ export const Importer: React.FC<ImporterProps> = ({ apiKey, model = 'gpt-4o-mini
             return fullText;
         } catch (e: any) {
             console.error("Erro interno no PDF.js:", e);
-            if (e.name === 'PasswordException' || e.message.includes('password')) {
-                throw new Error("O arquivo PDF está protegido por senha.");
-            }
-            if (e.name === 'InvalidPDFException') {
-                throw new Error("O arquivo parece estar corrompido ou não é um PDF válido.");
-            }
             throw new Error(e.message || "Falha ao ler o arquivo PDF.");
         }
     };
 
-    const resolveApiKey = () => {
-        const candidate = apiKey?.trim();
-        if (candidate && candidate !== '***') return candidate.replace(/[^\x00-\x7F]/g, '');
-        const local = loadLocalSecret('openai');
-        return local ? local.trim().replace(/[^\x00-\x7F]/g, '') : null;
-    };
-
     const processFile = async (file: File) => {
-        const cleanApiKey = resolveApiKey();
-        if (!cleanApiKey) {
-            alert("Chave OpenAI ausente. Abra o perfil, salve a chave e tente novamente.");
-            setState(prev => ({ ...prev, step: 'UPLOAD', processingStatus: 'Configure a API Key', progress: 0 }));
+        if (!isPremium) {
+            alert("Recurso exclusivo para assinantes Premium. Assine o plano Premium no Perfil.");
+            setState(prev => ({ ...prev, step: 'UPLOAD', processingStatus: 'Assinatura Premium necessária', progress: 0 }));
             return;
         }
 
@@ -135,185 +95,101 @@ export const Importer: React.FC<ImporterProps> = ({ apiKey, model = 'gpt-4o-mini
             step: 'PROCESSING',
             fileName: file.name,
             processingStatus: 'Inicializando leitura do PDF...',
-            progress: 0
+            progress: 10
         }));
 
         try {
-            // 1. Extração do PDF (Vai de 0% a 40%)
+            // 1. PDF Text extraction
             const pdfText = await extractTextFromPdf(file);
             
-            // =================================================================================
-            // ETAPA 1: FILTRAGEM DE CONTEXTO (Locating the Syllabus)
-            // =================================================================================
             setState(prev => ({
                 ...prev,
-                processingStatus: 'Analisando edital e localizando conteúdo...',
-                progress: 45 // Avança um pouco após a leitura
+                processingStatus: 'Enviando edital para processamento...',
+                progress: 40
             }));
 
-            const filterPrompt = `
-                Analise o documento fornecido. Sua ÚNICA tarefa é encontrar e retornar o texto referente ao "CONTEÚDO PROGRAMÁTICO" (Syllabus) ou "ANEXO DE DISCIPLINAS".
-                
-                Regras:
-                1. O documento é um edital longo. Ignore regras de inscrição, datas, isenções, etc.
-                2. Vá direto para a parte onde as matérias (Português, Direito, etc.) são listadas.
-                3. Se houver múltiplos cargos, identifique o cargo de NÍVEL SUPERIOR ou o primeiro cargo listado que tenha um conteúdo completo e RETORNE O CONTEÚDO DELE.
-                4. Retorne APENAS o texto bruto dessa seção, do início ao fim das disciplinas. Não formate, não resuma. Quero o texto original recortado.
-            `;
-
-            // Limite de caracteres para evitar "Failed to fetch" por payload excessivo
-            const MAX_CHARS_FOR_FILTER = 150000;
-            const textForFilter = pdfText.substring(0, MAX_CHARS_FOR_FILTER);
-
-            const filterResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${cleanApiKey}`
-                },
-                body: JSON.stringify({
-                    model: model, // Pode usar gpt-4o-mini aqui pois é tarefa de leitura extensa
-                    messages: [
-                        { role: "system", content: "Você é um assistente especialista em filtrar textos de editais." },
-                        { role: "user", content: filterPrompt + "\n\n--- DOCUMENTO ---\n" + textForFilter }
-                    ],
-                    temperature: 0.1
-                })
-            });
-
-            if (!filterResponse.ok) {
-                const errorBody = await filterResponse.text();
-                if (filterResponse.status === 401) {
-                    throw new Error('Chave OpenAI inválida ou expirada. Atualize no perfil e tente novamente.');
-                }
-                throw new Error(`Erro API (${filterResponse.status}): ${errorBody}`);
-            }
-            
-            const filterData = await filterResponse.json();
-            const relevantText = filterData.choices?.[0]?.message?.content;
-
-            if (!relevantText || relevantText.length < 100) {
-                console.warn("IA não encontrou seção específica, usando texto completo.");
-                // Fallback: se a IA não achar nada específico, usamos o texto todo, mas cortado
-            } else {
-                console.log("Contexto isolado com sucesso. Tamanho:", relevantText.length);
-            }
-
-            const textToProcess = (relevantText && relevantText.length > 100) ? relevantText : pdfText.substring(0, 50000);
-
-            // =================================================================================
-            // ETAPA 2: ESTRUTURAÇÃO (JSON Extraction)
-            // =================================================================================
-            setState(prev => ({
-                ...prev,
-                processingStatus: 'Estruturando disciplinas e tópicos (Isso pode levar alguns segundos)...',
-                progress: 75 // Salto significativo após localizar o texto
-            }));
-
-            const extractionPrompt = `
-                Com base no texto recortado do edital abaixo, extraia o conteúdo programático estruturado.
-                
-                CRITÉRIOS RIGOROSOS DE EXTRAÇÃO:
-                1. Identifique o Cargo (se mencionado no texto).
-                2. Separe TODAS as disciplinas encontradas (Ex: Português, Informática, Dir. Constitucional, etc).
-                3. DENTRO DE CADA DISCIPLINA:
-                   - O texto costuma vir em blocos densos (ex: "Conceito de ADM; Poderes; Atos.").
-                   - VOCÊ DEVE QUEBRAR ESSES BLOCOS EM UMA LISTA DE TÓPICOS INDIVIDUAIS.
-                   - Use pontuação (., ;) para separar os itens.
-                
-                Saída OBRIGATÓRIA em JSON:
-                {
-                    "cargo": "Nome do Cargo",
-                    "categorias": [
-                        {
-                            "nome": "Conhecimentos Gerais",
-                            "disciplinas": [
-                                { "nome": "Língua Portuguesa", "topicos": ["Interpretação", "Gramática", "..."] }
-                            ]
-                        },
-                        {
-                            "nome": "Conhecimentos Específicos",
-                            "disciplinas": [
-                                { "nome": "Nome da Disciplina", "topicos": ["Tópico 1", "Tópico 2", "..."] }
-                            ]
-                        }
-                    ]
-                }
-                
-                Se não houver distinção explícita de Gerais/Específicos, coloque tudo em "Conteúdo Programático".
-            `;
-
-            const structureResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${cleanApiKey}`
-                },
-                body: JSON.stringify({
-                    model: model,
-                    messages: [
-                        { role: "system", content: "Você é um extrator JSON preciso." },
-                        { role: "user", content: extractionPrompt + "\n\n--- TEXTO DO CONTEÚDO ---\n" + textToProcess }
-                    ],
-                    response_format: { type: "json_object" },
-                    temperature: 0.1
-                })
-            });
-
-            if (!structureResponse.ok) {
-                if (structureResponse.status === 401) {
-                    throw new Error('Chave OpenAI inválida ou expirada. Atualize no perfil e tente novamente.');
-                }
-                throw new Error("Erro ao contatar a IA (Etapa de Estruturação).");
-            }
-
-            const structureData = await structureResponse.json();
-            const aiContent = structureData.choices?.[0]?.message?.content;
+            // 2. Send request to backend
+            const startRes = await api.post('/ai/import-syllabus', { pdfText });
+            const { jobId } = startRes.data;
 
             setState(prev => ({
                 ...prev,
-                progress: 95, // Quase lá
-                processingStatus: 'Finalizando...'
+                processingStatus: 'IA analisando edital e localizando conteúdo...',
+                progress: 50
             }));
 
-            if (aiContent) {
+            // 3. Start polling
+            const pollInterval = setInterval(async () => {
                 try {
-                    const parsedData: SyllabusData = JSON.parse(aiContent);
-                    
-                    // Validação básica
-                    if (!parsedData.categorias || !Array.isArray(parsedData.categorias)) {
-                         throw new Error("JSON incompleto retornado pela IA.");
+                    const jobRes = await api.get(`/ai/job/${jobId}`);
+                    const { state, result, failedReason } = jobRes.data;
+
+                    if (state === 'completed') {
+                        clearInterval(pollInterval);
+                        
+                        setState(prev => ({
+                            ...prev,
+                            progress: 95,
+                            processingStatus: 'Finalizando...'
+                        }));
+
+                        const aiContent = typeof result === 'string' ? result : result?.content;
+                        
+                        if (aiContent) {
+                            try {
+                                const parsedData: SyllabusData = typeof aiContent === 'string' ? JSON.parse(aiContent) : aiContent;
+                                
+                                if (!parsedData.categorias || !Array.isArray(parsedData.categorias)) {
+                                     throw new Error("JSON incompleto retornado pela IA.");
+                                }
+
+                                const allSubjects = new Set<string>();
+                                parsedData.categorias.forEach((cat, catIdx) => {
+                                    cat.disciplinas.forEach((_, subIdx) => {
+                                        allSubjects.add(`${catIdx}-${subIdx}`);
+                                    });
+                                });
+
+                                setState(prev => ({
+                                    ...prev,
+                                    syllabus: parsedData,
+                                    selectedSubjects: allSubjects,
+                                    step: 'REVIEW',
+                                    progress: 100
+                                }));
+                            } catch (parseError) {
+                                console.error("JSON Inválido:", aiContent);
+                                alert("Falha ao processar o formato da resposta da IA.");
+                                setState(prev => ({ ...prev, step: 'UPLOAD', processingStatus: '', progress: 0 }));
+                            }
+                        } else {
+                            alert("A IA retornou uma resposta vazia.");
+                            setState(prev => ({ ...prev, step: 'UPLOAD', processingStatus: '', progress: 0 }));
+                        }
+
+                    } else if (state === 'failed') {
+                        clearInterval(pollInterval);
+                        alert(`Erro na Importação: ${failedReason || "O processador de IA falhou."}`);
+                        setState(prev => ({ ...prev, step: 'UPLOAD', processingStatus: '', progress: 0 }));
+                    } else {
+                        // Still active/waiting
+                        setState(prev => ({
+                            ...prev,
+                            processingStatus: 'IA estruturando disciplinas e tópicos...',
+                            progress: 75
+                        }));
                     }
-
-                    // Pré-selecionar todas
-                    const allSubjects = new Set<string>();
-                    parsedData.categorias.forEach((cat, catIdx) => {
-                        cat.disciplinas.forEach((_, subIdx) => {
-                            allSubjects.add(`${catIdx}-${subIdx}`);
-                        });
-                    });
-
-                    setState(prev => ({
-                        ...prev,
-                        syllabus: parsedData,
-                        selectedSubjects: allSubjects,
-                        step: 'REVIEW',
-                        progress: 100
-                    }));
-                } catch (parseError) {
-                    console.error("JSON Inválido:", aiContent);
-                    throw new Error("Falha ao processar o formato da resposta da IA.");
+                } catch (pollErr: any) {
+                    clearInterval(pollInterval);
+                    const errMsg = pollErr.response?.data?.message || pollErr.message || "Erro durante o monitoramento do processamento.";
+                    alert(`Erro na Importação: ${errMsg}`);
+                    setState(prev => ({ ...prev, step: 'UPLOAD', processingStatus: '', progress: 0 }));
                 }
-            } else {
-                throw new Error("A IA retornou uma resposta vazia.");
-            }
+            }, 2500);
 
         } catch (error: any) {
             console.error(error);
-            let errMsg = error.message;
-            if (errMsg.includes('Failed to fetch')) {
-                errMsg = "Falha de Conexão (Failed to fetch). Verifique se você possui AdBlock ativo ou restrições de rede.";
-            }
+            const errMsg = error.response?.data?.message || error.message || "Erro ao importar edital.";
             alert(`Erro na Importação: ${errMsg}`);
             setState(prev => ({ 
                 ...prev, 
@@ -383,17 +259,23 @@ export const Importer: React.FC<ImporterProps> = ({ apiKey, model = 'gpt-4o-mini
                     const color = shuffledPalette[globalSubjectIndex % shuffledPalette.length];
                     globalSubjectIndex++;
 
-                    newSubjects.push({
-                        id: `imported-${Date.now()}-${uniqueId}`,
+                     const subjectId = `imported-${Date.now()}-${uniqueId}`;
+                     newSubjects.push({
+                        id: subjectId,
                         planId: '', // Placeholder, será preenchido pelo App.tsx
                         name: sub.nome, // Opcional: `${cat.nome} - ${sub.nome}` se quiser prefixo
                         active: true,
                         color: color, 
                         priority: priority,
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
                         topics: sub.topicos.map((t, tIdx) => ({
                             id: `topic-${Date.now()}-${uniqueId}-${tIdx}`,
+                            subjectId: subjectId,
                             name: t,
-                            completed: false
+                            completed: false,
+                            createdAt: new Date().toISOString(),
+                            updatedAt: new Date().toISOString()
                         }))
                     });
                 }

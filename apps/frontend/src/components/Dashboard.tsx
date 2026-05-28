@@ -1,6 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { Screen, UserProfile, Subject, getSubjectIcon, ErrorLog, StudyLog, Topic } from '../types';
+import api from '../api/client';
+import DOMPurify from 'dompurify';
 
 interface DashboardProps {
     onNavigate: (screen: Screen) => void;
@@ -57,6 +59,7 @@ const getTopicStatusSafe = (subject: Subject, topic: Topic): { status: TopicStat
 const processSyllabusMapSafe = (subject: Subject): TopicGroup[] => {
     const groups: Record<string, TopicNode[]> = {};
     const rootNodes: TopicNode[] = [];
+    if (!subject.topics) return [];
 
     subject.topics.forEach((topic) => {
         const { status, accuracy, timeSpent } = getTopicStatusSafe(subject, topic);
@@ -161,6 +164,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, user, subjects
     const processSyllabusMap = (subject: Subject): TopicGroup[] => {
         const groups: Record<string, TopicNode[]> = {};
         const rootNodes: TopicNode[] = [];
+        if (!subject.topics) return [];
 
         subject.topics.forEach(topic => {
             const { status, accuracy, timeSpent } = getTopicStatus(subject, topic);
@@ -257,19 +261,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, user, subjects
             const pA = priorityWeight[a.priority || 'MEDIUM'];
             const pB = priorityWeight[b.priority || 'MEDIUM'];
             if (pA === pB) {
-                const progressA = a.topics.length > 0 ? a.topics.filter(t => t.completed).length / a.topics.length : 1;
-                const progressB = b.topics.length > 0 ? b.topics.filter(t => t.completed).length / b.topics.length : 1;
+                const topicsA = a.topics || [];
+                const topicsB = b.topics || [];
+                const progressA = topicsA.length > 0 ? topicsA.filter(t => t.completed).length / topicsA.length : 1;
+                const progressB = topicsB.length > 0 ? topicsB.filter(t => t.completed).length / topicsB.length : 1;
                 return progressA - progressB;
             }
             return pB - pA;
         })
         .slice(0, 3)
         .map(sub => {
-            const nextTopic = sub.topics.find(t => !t.completed);
+            const nextTopic = (sub.topics || []).find(t => !t.completed);
             return {
                 subject: sub,
                 nextTopic: nextTopic,
-                remainingTopics: sub.topics.filter(t => !t.completed).length
+                remainingTopics: (sub.topics || []).filter(t => !t.completed).length
             };
         });
 
@@ -284,7 +290,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, user, subjects
         let lastSessionDate: Date | null = null;
 
         if (sub.logs && Array.isArray(sub.logs)) {
-            sub.logs.forEach(log => {
+            for (const log of sub.logs) {
                 subQuestions += (log.questionsCount || 0);
                 subCorrect += (log.correctCount || 0);
                 subMinutes += (log.durationMinutes || 0);
@@ -293,7 +299,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, user, subjects
                 if (!lastSessionDate || logDate > lastSessionDate) {
                     lastSessionDate = logDate;
                 }
-            });
+            }
         }
 
         const accuracy = subQuestions > 0 ? Math.round((subCorrect / subQuestions) * 100) : 0;
@@ -402,8 +408,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, user, subjects
         }
     };
 
+    const isPremium = user.subscriptionStatus === 'premium';
+
     const generateAiInsights = async () => {
-        if (!user.openAiApiKey) return alert("Configure a API Key no perfil.");
+        if (!isPremium) {
+            alert("Recurso exclusivo para assinantes Premium. Ative sua assinatura no Perfil.");
+            return;
+        }
         setIsGeneratingInsight(true);
         try {
             // Prompt enriquecido com Tópicos Específicos
@@ -412,7 +423,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, user, subjects
                 const originalSubject = subjects.find(sub => sub.id === s.id);
                 
                 // Tópicos já concluídos (Contexto do que ele já sabe)
-                const completedTopics = originalSubject?.topics
+                const completedTopics = (originalSubject?.topics || [])
                     .filter(t => t.completed)
                     .map(t => t.name)
                     .slice(0, 8) 
@@ -434,43 +445,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, user, subjects
                 };
             });
 
-            const prompt = `
-                Você é o motor de inteligência do StudyFlow. Sua função é EXPLICAR POR QUE certas matérias estão no 'Radar de Atenção', usando dados específicos.
-                
-                DADOS DO ALUNO:
-                ${JSON.stringify(subjectsContext)}
-
-                OBJETIVO:
-                Para cada matéria, forneça uma análise de 1 frase justificando a prioridade.
-                
-                REGRAS DE OURO:
-                1. MENCIONE TÓPICOS ESPECÍFICOS se houver dados de erros. Ex: "Prioridade alta pois você errou questões de 'Crimes contra a Vida'..."
-                2. SE NÃO HOUVER ERROS, focado na Recência/Esquecimento. Ex: "Você estudou 'Atos Administrativos' mas faz 15 dias que não revisa."
-                3. USE O CONTEXTO: Se ele já estudou muito mas a acurácia é baixa, sugira que ele pode estar avançando sem consolidar.
-                4. FORMATO: HTML (<ul>, <li> com <strong> no nome da matéria).
-
-                Exemplo Ideal:
-                <ul>
-                  <li><strong>Direito Penal:</strong> Alerta crítico em 'Teoria do Crime' (múltiplos erros). Sua acurácia geral de 40% indica necessidade de voltar à teoria.</li>
-                  <li><strong>Português:</strong> Faz 12 dias que você não revisa tópicos como 'Crase' e 'Sintaxe', risco alto de curva de esquecimento.</li>
-                </ul>
-            `;
-
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user.openAiApiKey}` },
-                body: JSON.stringify({ 
-                    model: user.openAiModel || 'gpt-4o-mini', 
-                    messages: [
-                        { role: "system", content: "Você é um analista de dados educacionais focado em explicar decisões algorítmicas com precisão cirúrgica." }, 
-                        { role: "user", content: prompt }
-                    ],
-                    temperature: 0.3 
-                })
+            const response = await api.post('/ai/insights', {
+                attentionData: subjectsContext
             });
-            const resData = await response.json();
-            setAiInsight(resData.choices[0].message.content);
-        } catch (e: any) { alert(e.message); } finally { setIsGeneratingInsight(false); }
+            setAiInsight(response.data.content);
+        } catch (e: any) { 
+            const errMsg = e.response?.data?.message || e.message || "Erro de conexão com o servidor.";
+            alert(`Falha: ${errMsg}`); 
+        } finally { 
+            setIsGeneratingInsight(false); 
+        }
     };
 
     const LearningCurveChart = () => {
@@ -689,7 +673,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, user, subjects
                         
                         <div className="flex-1 bg-black/20 rounded-lg p-3 border border-white/5 mb-3 overflow-y-auto custom-scrollbar">
                             {aiInsight ? (
-                                <div className="text-xs text-slate-300 leading-relaxed" dangerouslySetInnerHTML={{ __html: aiInsight }}></div>
+                                <div className="text-xs text-slate-300 leading-relaxed" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(aiInsight) }}></div>
                             ) : (
                                 <p className="text-xs text-slate-500 italic text-center mt-4">
                                     Peça à IA para explicar a priorização do radar ao lado.
@@ -832,7 +816,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, user, subjects
                                         const groups = subjectGroupsMap[subject.id] || [];
                                         
                                         // Estatísticas de Progresso do Subject
-                                        const totalTopics = subject.topics.length;
+                                        const totalTopics = subject.topics?.length || 0;
                                         const completedCount = groups.reduce((acc, g) => acc + g.children.filter(c => c.status !== 'NOT_SEEN').length, 0);
                                         const progressPct = totalTopics > 0 ? Math.round((completedCount / totalTopics) * 100) : 0;
 

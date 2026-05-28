@@ -20,6 +20,8 @@ export interface UserWithSettings {
     id: string;
     name: string;
     email: string;
+    subscriptionStatus?: 'free' | 'premium' | 'cancelled';
+    premiumExpiresAt?: string | null;
     createdAt: string;
   };
   settings: UserSettings;

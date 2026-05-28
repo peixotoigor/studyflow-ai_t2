@@ -9,6 +9,9 @@ import { SimulatedExam } from './SimulatedExam';
 import { SavedNote } from './SavedNote';
 import { UserDriveAuth } from './UserDriveAuth';
 import { PasswordResetToken } from './PasswordResetToken';
+import { AiUsageLog } from './AiUsageLog';
+import { AiQuota } from './AiQuota';
+import { AiProviderConfig } from './AiProviderConfig';
 
 User.hasMany(StudyPlan, { foreignKey: 'userId', as: 'plans', onDelete: 'CASCADE' });
 StudyPlan.belongsTo(User, { foreignKey: 'userId', as: 'user' });
@@ -42,6 +45,12 @@ UserDriveAuth.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 User.hasMany(PasswordResetToken, { foreignKey: 'userId', as: 'resetTokens', onDelete: 'CASCADE' });
 PasswordResetToken.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
+User.hasMany(AiUsageLog, { foreignKey: 'userId', as: 'aiUsageLogs', onDelete: 'CASCADE' });
+AiUsageLog.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+User.hasMany(AiQuota, { foreignKey: 'userId', as: 'aiQuotas', onDelete: 'CASCADE' });
+AiQuota.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
 export {
   User,
   UserSettings,
@@ -53,5 +62,8 @@ export {
   SimulatedExam,
   SavedNote,
   UserDriveAuth,
-  PasswordResetToken
+  PasswordResetToken,
+  AiUsageLog,
+  AiQuota,
+  AiProviderConfig
 };

@@ -10,6 +10,10 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
   declare name: string;
   declare email: string;
   declare passwordHash?: string;
+  declare subscriptionStatus: CreationOptional<'free' | 'premium' | 'cancelled'>;
+  declare subscriptionId: CreationOptional<string | null>;      // Stripe Subscription ID
+  declare stripeCustomerId: CreationOptional<string | null>;     // Stripe Customer ID
+  declare premiumExpiresAt: CreationOptional<Date | null>;       // Data de expiração
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
   declare settings?: NonAttribute<UserSettings>;
@@ -35,6 +39,23 @@ User.init(
     },
     passwordHash: {
       type: DataTypes.STRING,
+      allowNull: true
+    },
+    subscriptionStatus: {
+      type: DataTypes.ENUM('free', 'premium', 'cancelled'),
+      allowNull: false,
+      defaultValue: 'free'
+    },
+    subscriptionId: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    stripeCustomerId: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    premiumExpiresAt: {
+      type: DataTypes.DATE,
       allowNull: true
     },
     createdAt: {
