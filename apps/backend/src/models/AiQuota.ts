@@ -60,7 +60,7 @@ AiQuota.init(
     indexes: [
       {
         unique: true,
-        fields: ['userId', 'date']
+        fields: ['user_id', 'date']
       }
     ]
   }
